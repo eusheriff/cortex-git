@@ -11,6 +11,7 @@ import {
   GateDecision,
 } from "./types.js";
 import { CortexCrypto } from "./crypto.js";
+import { RevocationRegistry } from "./revocation.js";
 
 export interface CommitPayload {
   repo: string;
@@ -22,6 +23,7 @@ export interface CommitPayload {
   diff: string;
   modifiedFiles: string[];
   signatureHex: string;
+  revocationRegistry?: RevocationRegistry;
 }
 
 export class CortexGatekeeper {
@@ -57,6 +59,41 @@ export class CortexGatekeeper {
     const gates: GateResult[] = [];
     let decision: GateDecision = "ALLOW";
     let quorumRequiredInfo: { requiredApprovals: number; collectedApprovals: number; reason: string } | undefined;
+
+    // --- GATE 00: Global Kill-Switch & Agent Key Revocation Check ---
+    const g0Start = performance.now();
+    let g0Passed = true;
+    let g0Reason = "Agent key and repository pass revocation and kill-switch checks.";
+    if (payload.revocationRegistry) {
+      const revocation = await payload.revocationRegistry.checkRevocation(
+        payload.authorAgent.publicKey,
+        payload.repo
+      );
+      if (revocation) {
+        g0Passed = false;
+        g0Reason = `FAIL-CLOSED: ${revocation.reason}`;
+        decision = "DENIED";
+      }
+    }
+    gates.push({
+      gateNumber: 0,
+      gateName: "REVOCATION_AND_KILLSWITCH",
+      passed: g0Passed,
+      latencyMs: parseFloat((performance.now() - g0Start).toFixed(3)),
+      reason: g0Reason,
+      evidenceHash: await CortexCrypto.sha256(payload.authorAgent.publicKey + ":" + payload.repo),
+    });
+
+    if (!g0Passed) {
+      return {
+        decision: "DENIED",
+        repo: payload.repo,
+        branch: payload.branch,
+        commitHash: payload.commitHash,
+        totalLatencyMs: parseFloat((performance.now() - totalStart).toFixed(3)),
+        gates,
+      };
+    }
 
     // --- GATE 01: Secret Scanner (Leak Prevention) ---
     const g1Start = performance.now();

@@ -7,6 +7,13 @@ import { CortexConsensus } from "../src/consensus.js";
 import { detectLineConflicts } from "../src/conflicts.js";
 import { eventIdentity } from "../src/artifact-evidence.js";
 import { ArtifactsNamespaceBinding, TaskIntent, AgentIdentity } from "../src/types.js";
+import { RevocationRegistry, RevocationKVBinding } from "../src/revocation.js";
+import {
+  parseOrCreateTraceContext,
+  attachTraceHeaders,
+  generateTraceId,
+  generateSpanId,
+} from "../src/telemetry.js";
 
 // Mock binding
 const mockArtifacts: ArtifactsNamespaceBinding = {
@@ -146,8 +153,10 @@ test("CortexGatekeeper: blocks commits containing hardcoded secrets (Gate 01)", 
   });
 
   assert.equal(outcome.decision, "DENIED");
-  assert.equal(outcome.gates[0].passed, false);
-  assert.ok(outcome.gates[0].reason.includes("secret"));
+  const secretGate = outcome.gates.find((g) => g.gateName === "SECRET_SCANNER");
+  assert.ok(secretGate, "SECRET_SCANNER gate must be present");
+  assert.equal(secretGate.passed, false);
+  assert.ok(secretGate.reason.includes("secret"));
 });
 
 test("CortexGatekeeper: enforces Human Quorum on critical infrastructure files (Gate 04)", async () => {
@@ -225,3 +234,137 @@ test("CortexConsensus: selects optimal agent solution based on multi-dimensional
   assert.equal(consensus.winningProposal.agent.agentId, "ag-a");
   assert.ok(consensus.compositeScore > 80);
 });
+
+function createMockKV(): RevocationKVBinding {
+  const store = new Map<string, string>();
+  return {
+    async get(key: string) {
+      return store.get(key) || null;
+    },
+    async put(key: string, value: string) {
+      store.set(key, value);
+    },
+    async delete(key: string) {
+      store.delete(key);
+    },
+  };
+}
+
+test("Telemetry: generates standards-compliant W3C traceparent and context", () => {
+  const traceId = generateTraceId();
+  assert.equal(traceId.length, 32);
+  assert.match(traceId, /^[0-9a-f]{32}$/);
+
+  const spanId = generateSpanId();
+  assert.equal(spanId.length, 16);
+  assert.match(spanId, /^[0-9a-f]{16}$/);
+
+  const fresh = parseOrCreateTraceContext(null);
+  assert.equal(fresh.traceId.length, 32);
+  assert.equal(fresh.spanId.length, 16);
+  assert.equal(fresh.traceFlags, "01");
+  assert.equal(fresh.traceparent, `00-${fresh.traceId}-${fresh.spanId}-01`);
+
+  // Parse existing inbound traceparent
+  const inboundTraceId = "4bf92f3577b34da6a3ce929d0e0e4736";
+  const inboundSpanId = "00f067aa0ba902b7";
+  const mockReq = new Request("http://localhost", {
+    headers: {
+      traceparent: `00-${inboundTraceId}-${inboundSpanId}-01`,
+    },
+  });
+
+  const parsed = parseOrCreateTraceContext(mockReq);
+  assert.equal(parsed.traceId, inboundTraceId);
+  assert.equal(parsed.parentSpanId, inboundSpanId);
+  assert.notEqual(parsed.spanId, inboundSpanId, "Child spanId must be newly generated");
+  assert.equal(parsed.traceparent, `00-${inboundTraceId}-${parsed.spanId}-01`);
+
+  const headers = new Headers();
+  attachTraceHeaders(headers, parsed);
+  assert.equal(headers.get("traceparent"), parsed.traceparent);
+  assert.equal(headers.get("x-abs-trace-id"), inboundTraceId);
+  assert.equal(headers.get("x-cortex-trace-id"), inboundTraceId);
+});
+
+test("RevocationRegistry: sub-2ms edge revocation and emergency kill-switch", async () => {
+  const kv = createMockKV();
+  const registry = new RevocationRegistry(kv);
+
+  const { publicKeyHex } = await CortexCrypto.generateAgentKeypair();
+
+  // 1. Initial clear state
+  const clearCheck = await registry.checkRevocation(publicKeyHex, "core-repo");
+  assert.equal(clearCheck, null);
+
+  // 2. Global killswitch
+  await registry.setGlobalKillSwitch(true, "Security breach test");
+  const blockedGlobal = await registry.checkRevocation(publicKeyHex, "core-repo");
+  assert.ok(blockedGlobal);
+  assert.equal(blockedGlobal?.type, "GLOBAL");
+  assert.equal(blockedGlobal?.revoked, true);
+
+  // Clear global killswitch
+  await registry.setGlobalKillSwitch(false);
+  const clearedGlobal = await registry.checkRevocation(publicKeyHex, "core-repo");
+  assert.equal(clearedGlobal, null);
+
+  // 3. Repository killswitch
+  await registry.setRepoKillSwitch("frozen-repo", true, "Branch locked for audit");
+  const blockedRepo = await registry.checkRevocation(publicKeyHex, "frozen-repo");
+  assert.ok(blockedRepo);
+  assert.equal(blockedRepo?.type, "REPOSITORY");
+  assert.equal(blockedRepo?.target, "frozen-repo");
+
+  const unblockedOtherRepo = await registry.checkRevocation(publicKeyHex, "other-repo");
+  assert.equal(unblockedOtherRepo, null);
+
+  // 4. Agent key revocation
+  await registry.revokeAgent(publicKeyHex, "Compromised key", "admin-secops");
+  const blockedAgent = await registry.checkRevocation(publicKeyHex, "other-repo");
+  assert.ok(blockedAgent);
+  assert.equal(blockedAgent?.type, "AGENT");
+  assert.equal(blockedAgent?.target, publicKeyHex.toLowerCase());
+});
+
+test("CortexGatekeeper: Gate 00 instantly fails-closed on revoked agent key", async () => {
+  const gatekeeper = new CortexGatekeeper();
+  const kv = createMockKV();
+  const registry = new RevocationRegistry(kv);
+
+  const { publicKeyHex, privateKey } = await CortexCrypto.generateAgentKeypair();
+  await registry.revokeAgent(publicKeyHex, "Revoked rogue agent", "security-team");
+
+  const author: AgentIdentity = {
+    agentId: "agent-rogue",
+    name: "Rogue Agent",
+    model: "test-model",
+    publicKey: publicKeyHex,
+    trustTier: "RESTRICTED",
+    createdTimestamp: Date.now(),
+  };
+
+  const commitHash = await CortexCrypto.sha256("benign-commit");
+  const signatureHex = await CortexCrypto.signPayload(`secure-repo:${commitHash}:${author.agentId}`, privateKey);
+
+  const outcome = await gatekeeper.evaluateCommit({
+    repo: "secure-repo",
+    branch: "main",
+    commitHash,
+    parentCommitHash: "000",
+    authorAgent: author,
+    promptText: "Add innocuous helper",
+    diff: "+ export function help() { return true; }",
+    modifiedFiles: ["src/helper.ts"],
+    signatureHex,
+    revocationRegistry: registry,
+  });
+
+  assert.equal(outcome.decision, "DENIED");
+  assert.equal(outcome.gates[0].gateNumber, 0);
+  assert.equal(outcome.gates[0].gateName, "REVOCATION_AND_KILLSWITCH");
+  assert.equal(outcome.gates[0].passed, false);
+  assert.ok(outcome.gates[0].reason.includes("FAIL-CLOSED"));
+  assert.equal(outcome.gates.length, 1, "Must short-circuit immediately without evaluating other gates");
+});
+

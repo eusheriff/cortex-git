@@ -1,6 +1,7 @@
 import { CortexCrypto } from "./crypto.js";
 import { detectLineConflicts, LineConflict } from "./conflicts.js";
 import { CortexGatekeeper } from "./gatekeeper.js";
+import { RevocationRegistry } from "./revocation.js";
 import { ArtifactsPushEvent, AgentIdentity, TaskIntent } from "./types.js";
 import { canonicalJson, eventIdentity, readCommitEvidence } from "./artifact-evidence.js";
 
@@ -354,6 +355,7 @@ export async function processPushEvent(env: Env, event: ArtifactsPushEvent): Pro
       createdTimestamp: Date.parse(agent.created_at),
     };
     const gatekeeper = new CortexGatekeeper();
+    const revocationRegistry = env.CORTEX_KV ? new RevocationRegistry(env.CORTEX_KV) : undefined;
     const outcome = await gatekeeper.evaluateCommit({
       repo: event.source.repoName,
       branch: event.payload.ref,
@@ -364,6 +366,7 @@ export async function processPushEvent(env: Env, event: ArtifactsPushEvent): Pro
       diff: evidence.diff,
       modifiedFiles: evidence.changedPaths,
       signatureHex: attestation?.signature_hex ?? "",
+      revocationRegistry,
     });
     const decision = outcome.decision === "ALLOW" ? "ALLOW" :
       outcome.decision === "DENIED" ? "DENY" : "ESCALATE";

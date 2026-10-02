@@ -3,11 +3,15 @@ import { CortexArbiter } from "./arbiter.js";
 import { readCommitEvidence } from "./artifact-evidence.js";
 import { CortexCrypto } from "./crypto.js";
 import { expireApprovals, processPushEvent, recordApprovalVote } from "./governance.js";
+import { RevocationRegistry } from "./revocation.js";
+import { parseOrCreateTraceContext, attachTraceHeaders, type W3CTraceContext } from "./telemetry.js";
 import type { ArtifactsPushEvent, TaskIntent } from "./types.js";
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
-  status, headers: { "content-type": "application/json; charset=utf-8" },
-});
+const json = (body: unknown, status = 200, trace?: W3CTraceContext) => {
+  const headers = new Headers({ "content-type": "application/json; charset=utf-8" });
+  if (trace) attachTraceHeaders(headers, trace);
+  return new Response(JSON.stringify(body), { status, headers });
+};
 
 function equalSecret(a: string, b: string): boolean {
   const left = new TextEncoder().encode(a);
@@ -121,9 +125,42 @@ async function createApprover(request: Request, env: Env): Promise<Response> {
   return json({ approverId, token }, 201);
 }
 
-async function handleRequest(request: Request, env: Env): Promise<Response> {
+async function handleRequest(request: Request, env: Env, trace: W3CTraceContext): Promise<Response> {
   const url = new URL(request.url);
-  if (request.method === "GET" && url.pathname === "/api/status") return json({ service: "cortex-git-governance", eventType: "cf.artifacts.repo.pushed" });
+  if (request.method === "GET" && url.pathname === "/api/status") {
+    return json({ service: "cortex-git-governance", eventType: "cf.artifacts.repo.pushed", traceId: trace.traceId }, 200, trace);
+  }
+  if (request.method === "POST" && url.pathname === "/api/governance/killswitch") {
+    if (!controlAuthorized(request, env)) return json({ error: "Unauthorized" }, 401, trace);
+    if (!env.CORTEX_KV) return json({ error: "KV binding not configured" }, 503, trace);
+    const body = await bodyJson(request);
+    const active = Boolean(body.active);
+    const registry = new RevocationRegistry(env.CORTEX_KV);
+    if (typeof body.repo === "string" && body.repo.trim()) {
+      await registry.setRepoKillSwitch(body.repo.trim(), active, typeof body.reason === "string" ? body.reason : undefined);
+      return json({ success: true, target: "repo", repo: body.repo.trim(), active }, 200, trace);
+    }
+    await registry.setGlobalKillSwitch(active, typeof body.reason === "string" ? body.reason : undefined);
+    return json({ success: true, target: "global", active }, 200, trace);
+  }
+  if (request.method === "POST" && url.pathname === "/api/governance/revoke-agent") {
+    if (!controlAuthorized(request, env)) return json({ error: "Unauthorized" }, 401, trace);
+    if (!env.CORTEX_KV) return json({ error: "KV binding not configured" }, 503, trace);
+    const body = await bodyJson(request);
+    const publicKey = taskString(body, "publicKey");
+    const reason = typeof body.reason === "string" ? body.reason : undefined;
+    const registry = new RevocationRegistry(env.CORTEX_KV);
+    await registry.revokeAgent(publicKey, reason);
+    return json({ success: true, revokedPublicKey: publicKey.toLowerCase() }, 200, trace);
+  }
+  if (request.method === "GET" && url.pathname === "/api/governance/revocation-status") {
+    if (!env.CORTEX_KV) return json({ error: "KV binding not configured" }, 503, trace);
+    const registry = new RevocationRegistry(env.CORTEX_KV);
+    const key = url.searchParams.get("key") ?? undefined;
+    const repo = url.searchParams.get("repo") ?? undefined;
+    const status = await registry.checkRevocation(key, repo);
+    return json({ revoked: Boolean(status?.revoked), details: status }, 200, trace);
+  }
   if (request.method === "POST" && url.pathname === "/api/repos") {
     if (!controlAuthorized(request, env)) return json({ error: "Unauthorized" }, 401);
     const body = await bodyJson(request);
@@ -193,7 +230,10 @@ export class GovernanceWorkflow extends WorkflowEntrypoint<Env, ArtifactsPushEve
 
 export default {
   fetch(request: Request, env: Env): Promise<Response> {
-    return handleRequest(request, env).catch((error: unknown) => json({ error: error instanceof Error ? error.message : "Internal error" }, 400));
+    const trace = parseOrCreateTraceContext(request);
+    return handleRequest(request, env, trace).catch((error: unknown) =>
+      json({ error: error instanceof Error ? error.message : "Internal error" }, 400, trace)
+    );
   },
   scheduled(_controller: ScheduledController, env: Env): Promise<void> {
     return expireApprovals(env).then(() => undefined);

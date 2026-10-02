@@ -6,6 +6,10 @@ compatibility_flags = ["nodejs_compat"]
 # Cloudflare Artifacts Git binding (Open Beta)
 # Connects the Worker directly to programmable Git repositories
 # In Workers code: env.ARTIFACTS
+[[artifacts]]
+binding = "ARTIFACTS"
+namespace = "cortex-git"
+
 [vars]
 ENVIRONMENT = "production"
 PLATFORM_NAME = "CORTEX Git"

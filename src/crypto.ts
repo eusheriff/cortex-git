@@ -12,7 +12,7 @@ export class CortexCrypto {
    */
   static async sha256(data: string | Uint8Array): Promise<string> {
     const buffer = typeof data === "string" ? new TextEncoder().encode(data) : data;
-    const hashBuffer = await crypto.subtle.digest("SHA-256", buffer as ArrayBuffer);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", buffer as unknown as ArrayBuffer);
     return Array.from(new Uint8Array(hashBuffer))
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
@@ -29,7 +29,7 @@ export class CortexCrypto {
     ) as CryptoKeyPair;
 
     const rawPub = await crypto.subtle.exportKey("raw", keyPair.publicKey);
-    const publicKeyHex = Array.from(new Uint8Array(rawPub))
+    const publicKeyHex = Array.from(new Uint8Array(rawPub as ArrayBuffer))
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
 

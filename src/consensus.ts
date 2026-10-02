@@ -4,7 +4,7 @@
  * Comparing multiple agent changes simultaneously, preserving context, and deciding which ships.
  */
 
-import { ArtifactsRepo, AgentIdentity } from "./types.js";
+import { AgentIdentity } from "./types.js";
 import { CortexCrypto } from "./crypto.js";
 
 export interface CandidateProposal {
@@ -31,18 +31,18 @@ export interface ConsensusDecision {
   compositeScore: number;
   allScores: { agentId: string; score: number }[];
   synthesisMarkdown: string;
-  mergedCommitHash?: string;
+  authorizedMergeTarget: string;
 }
 
 export class CortexConsensus {
   /**
    * Evaluates multiple agent proposals competing for the same task/feature
-   * Produces an explainable, deterministic consensus decision
+   * Produces an explainable, deterministic consensus decision authorizing which branch may advance
    */
   static async evaluateCandidates(
     taskDescription: string,
     candidates: CandidateProposal[],
-    repo?: ArtifactsRepo
+    targetBranch = "main"
   ): Promise<ConsensusDecision> {
     if (candidates.length === 0) {
       throw new Error("Cannot evaluate empty candidates list.");
@@ -85,7 +85,7 @@ export class CortexConsensus {
     const synthesisMarkdown = `### 🏆 Autonomous Consensus Report
 **Task:** ${taskDescription}  
 **Selected Champion:** Agent \`${winner.agent.name}\` (\`${winner.agent.model}\`)  
-**Winning Commit:** \`${winner.commitHash.slice(0, 10)}\` on branch \`${winner.branch}\`  
+**Authorized Branch for Promotion:** \`${winner.branch}\` (Commit: \`${winner.commitHash.slice(0, 10)}\`)  
 **Composite Evaluation Score:** ${winnerScore}/100
 
 #### 🔍 Why This Change Was Selected Over Competing Agents:
@@ -103,30 +103,13 @@ ${scored
   .join("\n")}
 `;
 
-    let mergedCommitHash: string | undefined;
-
-    // If real Artifacts repo provided, execute the merge
-    if (repo) {
-      try {
-        const mergeResult = await repo.merge({
-          sourceRef: winner.branch,
-          targetRef: "main",
-          message: `chore(cortex): autonomous merge of winner ${winner.agent.name} (${winner.commitHash.slice(0, 8)})\n\n${synthesisMarkdown}`,
-        });
-        mergedCommitHash = mergeResult.mergedCommit;
-      } catch {
-        // Fallback for mocked runs
-        mergedCommitHash = `merged-${await CortexCrypto.sha256(winner.commitHash).then((h) => h.slice(0, 12))}`;
-      }
-    }
-
     return {
       winningProposal: winner,
       rankingExplanation: `Agent ${winner.agent.name} won with score ${winnerScore} due to superior simplicity and full test verification.`,
       compositeScore: winnerScore,
       allScores: scored.map((s) => ({ agentId: s.candidate.agent.agentId, score: s.score })),
       synthesisMarkdown,
-      mergedCommitHash,
+      authorizedMergeTarget: targetBranch,
     };
   }
 }

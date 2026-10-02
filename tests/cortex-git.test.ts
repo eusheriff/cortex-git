@@ -10,16 +10,21 @@ import { ArtifactsNamespaceBinding, TaskIntent, AgentIdentity } from "../src/typ
 const mockArtifacts: ArtifactsNamespaceBinding = {
   async get(repoName: string) {
     return {
-      async info() { return { name: repoName, defaultBranch: "main", sizeBytes: 1024, jurisdiction: "eu" as const }; },
-      async fork(name: string) { return { name, remote: `https://artifacts.cloudflare.com/${name}.git`, token: "tok", parentRepo: repoName }; },
-      async readFile() { return { text: async () => "# AGENTS" }; },
-      async writeFile() { return { commitHash: "c1" }; },
-      async listBranches() { return ["main"]; },
-      async createBranch() {},
-      async merge() { return { mergedCommit: "m1" }; },
+      async info() { return { name: repoName, defaultBranch: "main" }; },
+      async fork(name: string) { return { name, remote: `https://artifacts.cloudflare.com/${name}.git`, token: "tok" }; },
+      async createToken() { return { id: "tok_1", token: "art_test" }; },
+      async listTokens() { return []; },
+      async revokeToken() { return true; },
+      async log() { return []; },
+      async readCommit() { return null; },
+      async readTree() { return []; },
+      async readBlob() { return null; },
+      async readFile() { return new Blob(["# AGENTS"]); },
     };
   },
-  async create(repoName: string) { return this.get(repoName); },
+  async create(repoName: string) { return { name: repoName, remote: `https://${repoName}.git`, token: "tok" }; },
+  async list() { return { repos: [] }; },
+  async delete() {},
 };
 
 test("CortexCrypto: generates Ed25519 keypair and verifies valid signatures", async () => {
@@ -154,7 +159,7 @@ test("CortexGatekeeper: enforces Human Quorum on critical infrastructure files (
 
   assert.equal(outcome.decision, "QUORUM_REQUIRED");
   assert.ok(outcome.quorumRequired);
-  assert.equal(outcome.quorumRequired.requiredApprovals, 2);
+  assert.equal(outcome.quorumRequired?.requiredApprovals, 2);
 });
 
 test("CortexConsensus: selects optimal agent solution based on multi-dimensional criteria", async () => {

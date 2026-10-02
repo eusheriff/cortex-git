@@ -15,28 +15,31 @@ class MockArtifactsBinding implements ArtifactsNamespaceBinding {
   async get(repoName: string) {
     return {
       async info() {
-        return { name: repoName, defaultBranch: "main", sizeBytes: 1048576, jurisdiction: "eu" as const };
+        return { name: repoName, defaultBranch: "main", sizeBytes: 1048576 };
       },
       async fork(newRepoName: string) {
-        return { name: newRepoName, remote: `https://artifacts.cloudflare.com/eu/${newRepoName}.git`, token: `cft_${crypto.randomUUID().slice(0, 16)}`, parentRepo: repoName };
+        return { name: newRepoName, remote: `https://artifacts.cloudflare.com/eu/${newRepoName}.git`, token: `cft_${crypto.randomUUID().slice(0, 16)}` };
       },
+      async createToken(scope = "write" as const, ttl = 3600) {
+        return { id: "tok_mock", token: `art_v2_mock_${crypto.randomUUID().slice(0, 12)}`, scope, expiresAt: new Date(Date.now() + ttl * 1000).toISOString() };
+      },
+      async listTokens() { return []; },
+      async revokeToken() { return true; },
+      async log() { return []; },
+      async readCommit() { return null; },
+      async readTree() { return []; },
+      async readBlob() { return null; },
       async readFile(opts: { ref: string; path: string }) {
         if (opts.path === "AGENTS.md") {
-          return { text: async () => "# Project Guidelines for Autonomous Agents\n1. Strictly zero-trust.\n2. Always sign commits." };
+          return new Blob(["# Project Guidelines for Autonomous Agents\n1. Strictly zero-trust.\n2. Always sign commits."]);
         }
-        return { text: async () => "// Base repository content" };
+        return new Blob(["// Base repository content"]);
       },
-      async writeFile(opts: any) {
-        return { commitHash: await CortexCrypto.sha256(opts.content) };
-      },
-      async listBranches() { return ["main", "dev"]; },
-      async createBranch() {},
-      async merge(opts: any) {
-        return { mergedCommit: await CortexCrypto.sha256(opts.sourceRef + opts.targetRef) };
-      }
     };
   }
-  async create(repoName: string) { return this.get(repoName); }
+  async create(repoName: string) { return { name: repoName, remote: `https://artifacts.cloudflare.com/${repoName}.git`, token: "tok" }; }
+  async list() { return { repos: [] }; }
+  async delete() {}
 }
 
 async function runLiveSwarmSimulation() {

@@ -1,15 +1,19 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
     "lib": ["ES2022"],
+    "typeRoots": [
+      "../abs-core/node_modules/@types",
+      "../CORTEX/node_modules/@types",
+      "../CORTEX/node_modules"
+    ],
     "types": ["@cloudflare/workers-types", "node"],
     "strict": true,
+    "noEmit": true,
     "skipLibCheck": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "outDir": "./dist"
+    "esModuleInterop": true
   },
-  "include": ["src/**/*", "tests/**/*", "demo/**/*"]
+  "include": ["src/**/*.ts", "tests/**/*.ts", "demo/**/*.ts"]
 }

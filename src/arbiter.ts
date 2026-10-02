@@ -4,7 +4,7 @@
  * Partitions task graph, prevents merge collisions, and manages Artifacts forks.
  */
 
-import { TaskIntent, ArtifactsNamespaceBinding, ArtifactsWorkspace } from "./types.js";
+import { TaskIntent, ArtifactsNamespaceBinding, ArtifactsCreateRepoResult } from "./types.js";
 import { CortexCrypto } from "./crypto.js";
 
 export interface TriageResult {

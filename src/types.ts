@@ -1,6 +1,6 @@
 /**
  * CORTEX Git: Type Definitions for Autonomous Agentic Git Infrastructure
- * Built for Cloudflare Workers & Cloudflare Artifacts
+ * Strictly aligned with official Cloudflare Artifacts & Workers Specs (Oct 2026)
  */
 
 export interface AgentIdentity {
@@ -78,35 +78,75 @@ export interface SPVInclusionProof {
 }
 
 /**
- * Cloudflare Artifacts API Bindings Interface (env.ARTIFACTS)
+ * Official Cloudflare Artifacts RPC Capability & Binding Interfaces
+ * (Derived from Cloudflare Artifacts Workers Binding API Specs)
  */
+export interface ArtifactsCreateRepoResult {
+  name: string;
+  remote: string;
+  defaultBranch?: string;
+  token?: string;
+}
+
 export interface ArtifactsRepoInfo {
   name: string;
   defaultBranch: string;
-  sizeBytes: number;
-  jurisdiction: "us" | "eu";
+  sizeBytes?: number;
+  readOnly?: boolean;
+  createdAt?: string;
 }
 
-export interface ArtifactsWorkspace {
-  name: string;
-  remote: string;
+export interface ArtifactsTokenResult {
+  id: string;
   token: string;
-  parentRepo: string;
+  expiresAt?: string;
+  scope?: string;
+}
+
+export interface ArtifactsCommitMetadata {
+  hash: string;
+  message: string;
+  author: {
+    name: string;
+    email: string;
+    date: string;
+  };
+  parents: string[];
+}
+
+export interface ArtifactsTreeEntry {
+  path: string;
+  type: "blob" | "tree";
+  hash: string;
 }
 
 export interface ArtifactsRepo {
   info(): Promise<ArtifactsRepoInfo>;
-  fork(newRepoName: string): Promise<ArtifactsWorkspace>;
-  readFile(opts: { ref: string; path: string }): Promise<{ text(): Promise<string> } | null>;
-  writeFile(opts: { ref: string; path: string; content: string; message: string }): Promise<{ commitHash: string }>;
-  listBranches(): Promise<string[]>;
-  createBranch(branch: string, fromRef: string): Promise<void>;
-  merge(opts: { sourceRef: string; targetRef: string; message: string }): Promise<{ mergedCommit: string }>;
+  createToken(scope?: "read" | "write" | "admin", ttl?: number): Promise<ArtifactsTokenResult>;
+  listTokens(): Promise<ArtifactsTokenResult[]>;
+  revokeToken(tokenOrId: string): Promise<boolean>;
+  fork(
+    name: string,
+    opts?: { description?: string; readOnly?: boolean; defaultBranchOnly?: boolean }
+  ): Promise<ArtifactsCreateRepoResult>;
+  log(opts?: { ref?: string; limit?: number; offset?: number }): Promise<ArtifactsCommitMetadata[]>;
+  readCommit(hash: string): Promise<ArtifactsCommitMetadata | null>;
+  readTree(hash: string): Promise<ArtifactsTreeEntry[] | null>;
+  readBlob(hash: string): Promise<Blob | null>;
+  readFile(args: { ref: string; path: string }): Promise<Blob | null>;
 }
 
 export interface ArtifactsNamespaceBinding {
-  get(repoName: string): Promise<ArtifactsRepo>;
-  create(repoName: string, opts?: { defaultBranch?: string; jurisdiction?: "us" | "eu" }): Promise<ArtifactsRepo>;
+  create(
+    name: string,
+    opts?: { description?: string; readOnly?: boolean; setDefaultBranch?: string }
+  ): Promise<ArtifactsCreateRepoResult>;
+  get(name: string): Promise<ArtifactsRepo>;
+  list(opts?: { limit?: number; cursor?: string }): Promise<{
+    repos: { name: string; status: "ready" | "importing" | "forking" }[];
+    cursor?: string;
+  }>;
+  delete(name: string): Promise<void>;
 }
 
 export interface CloudflareEnv {

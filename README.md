@@ -1,155 +1,52 @@
-# ⚡ CORTEX Git — Autonomous Software Governance on Cloudflare
+# CORTEX Git — Cloudflare Artifacts governance integration
 
-> **"Agents can write the code. ABS Core decides whether the change is allowed to proceed."**  
-> **"Cloudflare gives agents a place to build. CORTEX coordinates the work. ABS Core governs what is allowed to ship."**
+CORTEX Git connects Cloudflare Artifacts push events to the existing ABS Core Gatekeeper. A decision is useful only when the Worker retrieves the commit named by the event, evaluates that retrieved content, and persists a promotion state in D1. This repository is an integration prototype; a Worker deployment or a local `ALLOW` result alone is not proof of a complete governance pipeline.
 
-[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com)
-[![Cloudflare Artifacts](https://img.shields.io/badge/Cloudflare-Artifacts%20Beta-black?logo=git)](https://blog.cloudflare.com/next-git-platform-on-cloudflare/)
-[![Tests Passing](https://img.shields.io/badge/Tests-6%2F6%20Passing-10b981)]()
-[![Security](https://img.shields.io/badge/Runtime%20Firewall-Fail--Closed-ef4444)]()
-[![License](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
+## Current architecture
 
----
-
-## 🏛️ Architecture & Separation of Concerns
-
-Rather than rebuilding Git or turning ABS Core into another Git server, **CORTEX Git** enforces a strict, clean separation of duties between the development platform, the code producers, and the actuation authority:
-
-- **Cloudflare Artifacts:** Controls the development environment (repositories, isolated forks, workspaces, ephemeral write tokens, and standard Git-over-HTTPS protocol).
-- **Autonomous Agents:** Produce code changes and push commits via standard Git tooling.
-- **CORTEX:** Coordinates task planning, sub-millisecond AST conflict triage, and multi-agent synthesis.
-- **ABS Core:** Authoritatively governs whether a change is allowed to ship, evaluating real commits through an 11-Gate Fail-Closed Pipeline.
-
-```
-                  CORTEX
-                    │
-                    ▼
-             Task / Planning
-                    │
-                    ▼
-        Cloudflare Artifacts
-          ┌─────────┴─────────┐
-          │                   │
-       Workspace           Git repo
-          │                   │
-          ▼                   ▼
-       Agent ─────────────► git push
-                              │
-                              ▼
-                    Cloudflare Event
-                              │
-                              ▼
-                       ABS GATEKEEPER
-                              │
-                 ┌────────────┼────────────┐
-                 ▼            ▼            ▼
-               ALLOW        DENY       ESCALATE
-                 │                         │
-                 ▼                         ▼
-             CI / Deploy              Human quorum
-                 │
-                 ▼
-              Production
-                 │
-                 ▼
-          Cryptographic Ledger
+```text
+Agent identity → isolated Artifacts fork + short-lived token → Git commit/push
+  → cf.artifacts.repo.pushed → Governance Workflow → Artifacts commit/tree/blob reads
+  → ABS Core Gatekeeper → D1 decision + promotion/approval/conflict state
 ```
 
----
+`account_id:namespace:repository:ref:commit_sha` identifies a governance event. The push payload is captured before processing and is the sole source of commit identity. Diffs and changed paths are derived from the commit and its first-parent tree in Artifacts; no request-supplied diff or file body is accepted as evidence. Reprocessing an identical captured payload returns its existing state.
 
-## 🔑 Answers to Cloudflare's Four Core Questions
+Git author name and email are metadata, not security identities. A task associates an agent public key with an isolated workspace; the agent signs the repository/commit/agent tuple. Workspace write tokens are short-lived and their hashes/IDs are recorded, never their plaintext values.
 
-In their [launch announcement](https://blog.cloudflare.com/next-git-platform-on-cloudflare/), Cloudflare posed the fundamental questions of the agentic era:
+Promotion states are persisted separately from decisions: `ALLOW → AUTHORIZED`, `DENY → BLOCKED`, `ESCALATE → FROZEN`. Escalation creates an expiring approval request. Distinct authenticated approvers count once; approval changes the promotion from `FROZEN` to `AUTHORIZED`, while rejection or expiry blocks it. Parallel candidates from the same base are compared using their Artifacts trees and actual line-level changes. A conflict becomes `CONFLICT_DETECTED` then `RESOLUTION_PENDING`; a resolution must be a new commit and is evaluated by ABS Core again.
 
-| Cloudflare's Question | The Traditional Git Failure | The CORTEX + ABS Core Solution |
-| :--- | :--- | :--- |
-| **1. How do agents know what other agents are working on?** | Agents read stale branches and blind-push conflicting PRs. | **Pre-dispatch Arbiter (JEV System 1):** Intercepts agent intent in sub-millisecond latency (0.05ms P50), partitions the AST target graph, and spins up isolated `env.ARTIFACTS.fork()` workspaces without collision. |
-| **2. What happens when they make conflicting changes?** | Git aborts with manual merge conflict markers (`<<<<<<< HEAD`). | **Autonomous Consensus Engine:** Compares competing agent proposals, scores them on test pass rate, code simplicity (Karpathy principle), and security ratings, synthesizing the mathematically superior branch. |
-| **3. How do you review everything they produce?** | Humans drown in hundreds of unvetted LLM-generated pull requests. | **Fail-Closed 11-Gate Pipeline:** Evaluates real commits in < 1.5ms. Blocks hardcoded secrets and dangerous calls, while escalating to **M-of-N Human Quorums** only when critical infrastructure (`wrangler.toml`, `migrations/`) is touched. |
-| **4. How do you track not just WHAT changed, but WHY?** | Generic commit messages written by models (`"update code"`). | **"Why It Changed" Synthesis Matrix & WORM Ledger:** Commits are permanently anchored with prompt hashes, Ed25519 signatures, RFC 3161 timestamps, and Merkle inclusion proofs (SPV). |
+## Current verification status
 
----
+The Worker, Workflow, D1 binding, schedule, and `cf.artifacts.repo.pushed` trigger are deployed. Cloudflare delivered real push events to Workflow instances; the event payload does not include `metadata.accountId`, so the Worker anchors the account identity to its configured account and rejects a supplied mismatching account ID. The canonical live run completed SAFE (`ALLOW → AUTHORIZED`), SECRET (`DENY → BLOCKED`), SENSITIVE_CHANGE (`ESCALATE → FROZEN → APPROVED → AUTHORIZED`), duplicate replay (one decision), and two-agent conflict detection/resolution. The resolution was a new commit and passed through governance again. Workflow event payloads, decisions, and promotion states were persisted in D1.
 
-## 🎯 The Three Canonical Governance States
+Automated local checks cover the existing crypto, gatekeeper, arbiter, and consensus regression cases. The local swarm demo remains a simulation; the canonical live E2E above is the evidence for real Artifacts Git pushes and conflict handling. No production deployment was performed: `AUTHORIZED` means promotion authorization only.
 
-ABS Core classifies every incoming commit into one of three deterministically audited states:
+## Run checks
 
-```
-                ALLOW
-                  ↓
-                DENY
-                  ↓
-         ESCALATE / QUORUM_REQUIRED
-```
+From this directory:
 
-1. **`ALLOW`**: The code change passes all safety invariants, contains no injected credentials, and adheres to scope. Promoted immediately to downstream CI/deploy.
-2. **`DENY`**: Fail-Closed interdiction. Hardcoded secrets, unauthorized syscalls, or policy violations immediately terminate the pipeline without side effects.
-3. **`ESCALATE`**: Sensitive changes (database migrations, cloud infrastructure configurations) trigger an M-of-N cryptographic human quorum, halting execution until verified human officers sign off.
-
----
-
-## ⚡ Quickstart & Live Reproduction
-
-### Prerequisites
-- Node.js ≥ 20
-- Cloudflare Wrangler CLI (`npm install -g wrangler`)
-- Authenticated Cloudflare account with Artifacts Beta enabled
-
-### 1. Run Unit Tests (100% Pass Rate)
-Verify the core cryptographic and algorithmic guarantees:
 ```bash
+npm run build
 npm test
+npm exec --yes --package=wrangler@4.147.0 -- wrangler types
 ```
-*Output: 6/6 tests passing in under 170ms.*
 
-### 2. Run the Real Cloudflare End-to-End Governance Pipeline
-Run the fully automated, zero-assumption E2E verification against live Cloudflare Artifacts infrastructure:
+The real integration demo requires an authenticated Cloudflare account with Artifacts enabled, the configured D1 database/migration, the deployed Worker and event Workflow, plus the Worker secret `CORTEX_CONTROL_KEY`. Set `CORTEX_WORKER_URL` if using a different test Worker. Then run:
+
 ```bash
 npm run demo:e2e
 ```
-*What this test executes:*
-1. **Agent Provisioning:** Generates Ed25519 cryptographic keypairs for the agent.
-2. **Workspace Creation:** Creates a real Cloudflare Artifacts repository via the Cloudflare API.
-3. **Ephemeral Credential:** Issues a 30-minute scoped write token (`art_v2_x_...`).
-4. **Commit A (Safe Code):** Commits clean feature $\rightarrow$ `git push` over HTTPS $\rightarrow$ Evaluated by ABS Gatekeeper $\rightarrow$ **`ALLOW`** (Promoted to CI/Production, sealed with RFC 3161 timestamp and Merkle proof).
-5. **Commit B (Rogue Secret):** Injects a hardcoded API credential $\rightarrow$ `git push` over HTTPS $\rightarrow$ Evaluated by ABS Gatekeeper $\rightarrow$ **`DENIED`** (Fail-Closed, zero side effects permitted).
-6. **Commit C (Schema Migration):** Modifies database schema DDL $\rightarrow$ `git push` over HTTPS $\rightarrow$ Evaluated by ABS Gatekeeper $\rightarrow$ **`QUORUM_REQUIRED`** (Frozen pending 2 human cryptographic signatures).
 
-### Verified Verification Matrix
-```
-================================================================================
-  🏆 CANONICAL DEMONSTRATION MATRIX — 100% REPRODUCIBLE & VERIFIED
-================================================================================
-  COMMIT A (Safe Feature):      ➔ [ ALLOW ]           ➔ Promoted to CI/Production
-  COMMIT B (Secret Injected):   ➔ [ DENIED ]          ➔ Fail-Closed Terminated
-  COMMIT C (Schema Migration):  ➔ [ QUORUM_REQUIRED ] ➔ Frozen for Human Quorum
---------------------------------------------------------------------------------
-  Cryptographic Ledger Status:  ➔ 2 Sealed SARs | Merkle Root: 0x8c4a6caf51d...
-================================================================================
-```
+The script creates a uniquely named Artifacts source repository, seeds it with a real Git push, requests isolated forks and ephemeral agent tokens, then runs SAFE, SECRET, SENSITIVE_CHANGE, duplicate-event, and two-agent conflict/resolution cases. It waits for terminal event processing and persistent promotion state; it does not synthesize Cloudflare push events. It prints commit identities and outcomes only after checks pass. The script removes only its own generated local temporary directory. Remote test repositories and their history are intentionally retained for audit and must be removed separately when no longer needed. The demonstrated run used a temporary `CORTEX_CONTROL_KEY`, which was removed after verification.
 
-### 3. Run the Multi-Agent Swarm Simulation
-Experience concurrent multi-agent arbitration and consensus locally:
-```bash
-npm run demo
-```
+`npm run demo` is the explicitly local swarm simulation; it is not the canonical E2E.
 
-### 4. Run the Local Edge Dashboard
-Launch the Cloudflare Worker locally:
-```bash
-npm run dev
-```
-Open [http://localhost:8787](http://localhost:8787) to view the live dashboard displaying active workspaces, push events, and cryptographic ledger proofs.
+## Security and scope notes
 
----
-
-## 📦 What Makes CORTEX Git the Winning Entry?
-
-1. **Proven Against Real Cloudflare Infrastructure:** Zero mockups. Uses real `ARTIFACTS` namespaces, real ephemeral tokens, and real `git push` over HTTPS.
-2. **Deterministic Governance:** Shifts AI safety from fuzzy prompt guards to mathematical runtime firewalls with Ed25519 attestation, RFC 3161 timestamps, and Merkle inclusion proofs.
-3. **High-Integrity Simplicity:** Follows the Karpathy Protocol — minimum viable complexity, surgical changes, and radical simplicity.
-4. **Permissive Open Source:** Licensed under **Apache-2.0** for immediate adoption by the Cloudflare developer ecosystem.
-
----
-
-*Architected by the CORTEX / ABS Core Engineering Team for the Cloudflare Artifacts Challenge (October 2026).*
+- The timestamp proof currently implemented is a local hash-based timestamp, not an RFC 3161 TSA token.
+- Approval is an authenticated human quorum, not multisignature cryptography.
+- `AUTHORIZED` means promotion authorization / CI-deployment eligibility. No production deployment is performed by this integration.
+- Artifacts event identity may not expose the Git token that performed a push. The current binding is agent key ↔ task ↔ workspace/repository, with Git metadata treated as untrusted; a stronger credential-to-event attribution requires a documented Cloudflare event principal or another verified mechanism.
+- Keep Artifacts tokens, control secrets, private keys, and `.dev.vars` out of source control.
+- ABS Core engine architecture and the separate `CORTEX` arbiter implementation are not changed by this integration.

@@ -163,17 +163,17 @@ export class CortexGatekeeper {
       evidenceHash: await CortexCrypto.sha256(g4Reason),
     });
 
-    // --- GATE 05: WORM Merkle Ledger Commit & RFC 3161 TSA ---
+    // --- GATE 05: Local Merkle Audit Record and hash-based timestamp proof ---
     const g5Start = performance.now();
     let signedRecord: SignedCommitRecord | undefined;
     let merkleRoot: string | undefined;
 
     if (decision !== "DENIED") {
       const promptHash = await CortexCrypto.sha256(payload.promptText);
-      const tsa = await CortexCrypto.issueRFC3161Token(payload.commitHash);
+      const timestamp = await CortexCrypto.issueLocalTimestampProof(payload.commitHash);
       const sarId = `SAR-${crypto.randomUUID().slice(0, 12)}`;
 
-      const leafContent = `${payload.commitHash}:${payload.authorAgent.agentId}:${tsa.token}`;
+      const leafContent = `${payload.commitHash}:${payload.authorAgent.agentId}:${timestamp.proof}`;
       const merkleLeaf = await CortexCrypto.sha256(leafContent);
 
       this.ledgerLeaves.push(merkleLeaf);
@@ -188,8 +188,9 @@ export class CortexGatekeeper {
         authorAgentId: payload.authorAgent.agentId,
         promptHash,
         parentCommitHash: payload.parentCommitHash,
-        rfc3161Timestamp: tsa.isoTimestamp,
-        monotonicClockMs: tsa.monotonicClockMs,
+        observedAt: timestamp.observedAt,
+        localTimestampProof: timestamp.proof,
+        monotonicClockMs: timestamp.monotonicClockMs,
         signature: payload.signatureHex,
         sarId,
         merkleLeaf,
@@ -200,10 +201,10 @@ export class CortexGatekeeper {
 
     gates.push({
       gateNumber: 5,
-      gateName: "WORM_MERKLE_COMMIT",
+      gateName: "MERKLE_AUDIT_RECORD",
       passed: decision !== "DENIED",
       latencyMs: parseFloat((performance.now() - g5Start).toFixed(3)),
-      reason: decision !== "DENIED" ? "SAR committed to WORM hash chain with RFC 3161 timestamp." : "Skipped due to denial.",
+      reason: decision !== "DENIED" ? "Local timestamp proof and Merkle audit record created." : "Skipped due to denial.",
       evidenceHash: merkleRoot || "DENIED",
     });
 

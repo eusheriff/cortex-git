@@ -1,7 +1,7 @@
 {
   "name": "cortex-git",
   "version": "1.0.0",
-  "description": "Autonomous Sovereign Git Platform on Cloudflare Workers & Artifacts with Fail-Closed Runtime Governance and Cryptographic Attestation",
+  "description": "Autonomous software governance on Cloudflare Workers and Artifacts",
   "main": "src/index.ts",
   "scripts": {
     "dev": "wrangler dev",
@@ -9,7 +9,7 @@
     "test": "tsx --test tests/*.test.ts",
     "demo": "tsx demo/simulate-swarm.ts",
     "demo:e2e": "tsx demo/e2e-cloudflare-governance.ts",
-    "verify:real": "tsx demo/verify-real-artifacts.ts",
+    "verify:real": "npm run demo:e2e",
     "build": "tsc"
   },
   "keywords": [
@@ -20,15 +20,14 @@
     "runtime-governance",
     "cryptographic-proofs"
   ],
-  "author": "CORTEX / ABS Core Team",
+  "author": "Rodrigo Gomes (OConnector Technology)",
   "license": "Apache-2.0",
   "dependencies": {
     "hono": "^4.6.0"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20241004.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
-    "wrangler": "^3.80.0"
+    "wrangler": "^4.147.0"
   }
 }

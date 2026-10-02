@@ -1,7 +1,7 @@
 /**
  * CORTEX Git: Cryptographic Foundation
  * Implements Ed25519 digital signatures, SHA-256 hash chains,
- * Merkle Trees with SPV proofs, and RFC 3161 digital timestamping.
+ * Merkle Trees with SPV proofs, and a local hash-based timestamp proof.
  */
 
 import { MerkleNode, SPVInclusionProof } from "./types.js";
@@ -175,17 +175,17 @@ export class CortexCrypto {
   }
 
   /**
-   * Issues an RFC 3161 digital timestamp token using monotonic hardware clock
+   * Builds a local timestamp hash. This is not an RFC 3161 token or TSA signature.
    */
-  static async issueRFC3161Token(dataHash: string): Promise<{
-    token: string;
-    isoTimestamp: string;
+  static async issueLocalTimestampProof(dataHash: string): Promise<{
+    proof: string;
+    observedAt: string;
     monotonicClockMs: number;
   }> {
     const monotonicClockMs = performance.now();
-    const isoTimestamp = new Date().toISOString();
-    const rawEnvelope = `RFC3161-DER:${dataHash}:${isoTimestamp}:${monotonicClockMs.toFixed(4)}`;
-    const token = await CortexCrypto.sha256(rawEnvelope);
-    return { token: `0x${token}`, isoTimestamp, monotonicClockMs };
+    const observedAt = new Date().toISOString();
+    const rawEnvelope = `CORTEX-LOCAL-TIMESTAMP:${dataHash}:${observedAt}:${monotonicClockMs.toFixed(4)}`;
+    const proof = await CortexCrypto.sha256(rawEnvelope);
+    return { proof: `0x${proof}`, observedAt, monotonicClockMs };
   }
 }

@@ -4,6 +4,8 @@ import { CortexCrypto } from "../src/crypto.js";
 import { CortexArbiter } from "../src/arbiter.js";
 import { CortexGatekeeper } from "../src/gatekeeper.js";
 import { CortexConsensus } from "../src/consensus.js";
+import { detectLineConflicts } from "../src/conflicts.js";
+import { eventIdentity } from "../src/artifact-evidence.js";
 import { ArtifactsNamespaceBinding, TaskIntent, AgentIdentity } from "../src/types.js";
 
 // Mock binding
@@ -59,6 +61,25 @@ test("CortexCrypto: builds Merkle Tree and proves SPV inclusion", async () => {
     const valid = await CortexCrypto.verifySPVProof(proof);
     assert.equal(valid, true, `SPV proof for leaf ${i} must verify`);
   }
+});
+
+test("governance identity is account/repository/ref/commit scoped", () => {
+  const identity = eventIdentity({ accountId: "acct", namespace: "ns", repository: "repo", ref: "refs/heads/main", commitSha: "a".repeat(40) });
+  assert.equal(identity, `acct:ns:repo:refs/heads/main:${"a".repeat(40)}`);
+  assert.notEqual(identity, eventIdentity({ accountId: "other", namespace: "ns", repository: "repo", ref: "refs/heads/main", commitSha: "a".repeat(40) }));
+});
+
+test("Git conflict detection requires divergent overlapping line edits from a common base", () => {
+  const base = "mode=base\nstatus=stable\n";
+  const candidateA = "mode=agent-a\nstatus=stable\n";
+  const candidateB = "mode=agent-b\nstatus=stable\n";
+  const conflicts = detectLineConflicts("src/shared.txt", base, candidateA, candidateB);
+  assert.equal(conflicts.length, 1);
+  assert.equal(conflicts[0].baseStartLine, 1);
+  assert.deepEqual(conflicts[0].candidateA, ["mode=agent-a"]);
+  assert.deepEqual(conflicts[0].candidateB, ["mode=agent-b"]);
+  assert.deepEqual(detectLineConflicts("src/shared.txt", base, candidateA, candidateA), []);
+  assert.deepEqual(detectLineConflicts("src/shared.txt", base, "mode=base\nstatus=agent-a\n", "mode=agent-b\nstatus=stable\n"), []);
 });
 
 test("CortexArbiter: triages non-overlapping tasks concurrently and isolates workspaces", async () => {

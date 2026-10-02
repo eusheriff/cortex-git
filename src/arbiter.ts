@@ -1,24 +1,18 @@
-/**
- * CORTEX Git: Pre-dispatch Arbiter (JEV System 1)
- * High-throughput deterministic concurrency triage engine.
- * Partitions task graph, prevents merge collisions, and manages Artifacts forks.
- */
-
-import { TaskIntent, ArtifactsNamespaceBinding, ArtifactsCreateRepoResult } from "./types.js";
-import { CortexCrypto } from "./crypto.js";
+import { TaskIntent } from "./types.js";
 
 export interface TriageResult {
   taskId: string;
-  allowedConcurrently: boolean;
+  allowedConcurrently: true;
   assignedWorkspace: string;
-  conflictRisk: "LOW" | "MODERATE" | "HIGH_COLLISION";
-  overlappingFiles: string[];
+  conflictRisk: "LOW";
+  overlappingFiles: [];
   requiresQuorum: boolean;
   arbiterLatencyMs: number;
+  workspace: { name: string; remote: string; token: string; tokenId: string; tokenExpiresAt: string };
 }
 
+/** Creates isolated Artifacts workspaces; Git-level conflict detection happens after pushes. */
 export class CortexArbiter {
-  private activeTasks: Map<string, TaskIntent> = new Map();
   private protectedPaths: RegExp[] = [
     /^wrangler\.toml$/,
     /^package\.json$/,
@@ -28,87 +22,34 @@ export class CortexArbiter {
     /^contracts\//,
   ];
 
-  constructor(private artifacts: ArtifactsNamespaceBinding) {}
+  constructor(private artifacts: Artifacts) {}
 
-  /**
-   * Evaluates task intent against all currently active tasks
-   * Runs in < 25ms to enable instantaneous fork creation
-   */
   async triageIntent(intent: TaskIntent): Promise<TriageResult> {
     const start = performance.now();
-    const overlappingFiles: string[] = [];
-    let requiresQuorum = false;
-
-    // Check for protected paths requiring elevated human quorum
-    for (const file of intent.targetFiles) {
-      if (this.protectedPaths.some((pattern) => pattern.test(file))) {
-        requiresQuorum = true;
-      }
-    }
-
-    // Inspect collisions with currently running agent tasks
-    for (const [otherId, activeIntent] of this.activeTasks.entries()) {
-      if (activeIntent.repo !== intent.repo) continue;
-
-      for (const target of intent.targetFiles) {
-        if (activeIntent.targetFiles.includes(target)) {
-          overlappingFiles.push(target);
-        }
-      }
-    }
-
-    let conflictRisk: "LOW" | "MODERATE" | "HIGH_COLLISION" = "LOW";
-    let allowedConcurrently = true;
-
-    if (overlappingFiles.length > 0) {
-      conflictRisk = overlappingFiles.length > 2 ? "HIGH_COLLISION" : "MODERATE";
-      // If high collision on exact same files, we do NOT allow concurrent write without serialization
-      if (conflictRisk === "HIGH_COLLISION") {
-        allowedConcurrently = false;
-      }
-    }
-
-    // Create an isolated Cloudflare Artifacts fork for the agent session
+    const requiresQuorum = intent.targetFiles.some((file) =>
+      this.protectedPaths.some((pattern) => pattern.test(file))
+    );
     const forkId = `agent-${intent.agentId.slice(0, 8)}-${crypto.randomUUID().slice(0, 8)}`;
-    let assignedWorkspace = forkId;
+    const baseRepo = await this.artifacts.get(intent.repo);
+    const workspace = await baseRepo.fork(forkId, { defaultBranchOnly: true, readOnly: false });
 
-    if (allowedConcurrently) {
-      try {
-        const baseRepo = await this.artifacts.get(intent.repo);
-        const workspace = await baseRepo.fork(forkId);
-        assignedWorkspace = workspace.name;
-        this.activeTasks.set(intent.taskId, intent);
-      } catch (err) {
-        // Fallback name if mocking
-        assignedWorkspace = forkId;
-        this.activeTasks.set(intent.taskId, intent);
-      }
-    }
-
-    const arbiterLatencyMs = parseFloat((performance.now() - start).toFixed(3));
-
+    const scopedToken = await (await this.artifacts.get(workspace.name)).createToken("write", 1800);
+    await (await this.artifacts.get(workspace.name)).revokeToken(workspace.token);
     return {
       taskId: intent.taskId,
-      allowedConcurrently,
-      assignedWorkspace,
-      conflictRisk,
-      overlappingFiles,
+      allowedConcurrently: true,
+      assignedWorkspace: workspace.name,
+      conflictRisk: "LOW",
+      overlappingFiles: [],
       requiresQuorum,
-      arbiterLatencyMs,
+      arbiterLatencyMs: parseFloat((performance.now() - start).toFixed(3)),
+      workspace: {
+        name: workspace.name,
+        remote: workspace.remote,
+        token: scopedToken.plaintext,
+        tokenId: scopedToken.id,
+        tokenExpiresAt: scopedToken.expiresAt,
+      },
     };
-  }
-
-  /**
-   * Releases task from active registry once commit is finalized or aborted
-   */
-  releaseTask(taskId: string): void {
-    this.activeTasks.delete(taskId);
-  }
-
-  /**
-   * Returns current active concurrency metrics
-   */
-  getActiveAgentCount(): number {
-    return this.activeTasks.size;
   }
 }

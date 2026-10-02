@@ -1,6 +1,6 @@
 name = "cortex-git"
 main = "src/index.ts"
-compatibility_date = "2026-10-01"
+compatibility_date = "2026-10-02"
 compatibility_flags = ["nodejs_compat"]
 
 # Cloudflare Artifacts Git binding (Open Beta)
@@ -15,15 +15,32 @@ ENVIRONMENT = "production"
 PLATFORM_NAME = "CORTEX Git"
 SECURITY_LEVEL = "FAIL_CLOSED"
 JURISDICTION = "eu"
+CLOUDFLARE_ACCOUNT_ID = "e71984852bedaf5f21cef5d949948498"
 
-# D1 Database for Forensic WORM Merkle Ledger & Agent Sessions
+# Persistent governance, approval, conflict, and promotion state.
 [[d1_databases]]
 binding = "DB"
-database_name = "cortex-git-ledger"
-database_id = "cortex-git-ledger-d1"
+database_name = "cortex-git-governance"
+database_id = "21131839-1aa4-4a70-98ad-ccc32115a2e9"
+migrations_dir = "migrations"
 
-# Event subscription to Artifacts push and lifecycle events
-[[queues.consumers]]
-queue = "artifacts-events-queue"
-max_batch_size = 10
-max_batch_timeout = 5
+[[workflows]]
+binding = "GOVERNANCE_WORKFLOW"
+name = "cortex-git-governance"
+class_name = "GovernanceWorkflow"
+
+[[triggers.events]]
+type = "cf.artifacts.repo.pushed"
+targets = [{ type = "workflow", workflow_name = "cortex-git-governance" }]
+
+[triggers.events.filter]
+namespace = "cortex-git"
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+[observability]
+enabled = true
+
+  [observability.logs]
+  enabled = true

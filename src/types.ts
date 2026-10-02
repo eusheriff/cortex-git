@@ -30,7 +30,8 @@ export interface SignedCommitRecord {
   authorAgentId: string;
   promptHash: string;
   parentCommitHash: string;
-  rfc3161Timestamp: string;
+  observedAt: string;
+  localTimestampProof: string;
   monotonicClockMs: number;
   signature: string; // Ed25519 signature
   sarId: string; // Signed Action Record ID
@@ -81,79 +82,23 @@ export interface SPVInclusionProof {
  * Official Cloudflare Artifacts RPC Capability & Binding Interfaces
  * (Derived from Cloudflare Artifacts Workers Binding API Specs)
  */
-export interface ArtifactsCreateRepoResult {
-  name: string;
-  remote: string;
-  defaultBranch?: string;
-  token?: string;
-}
+export type CloudflareEnv = Env;
 
-export interface ArtifactsRepoInfo {
-  name: string;
-  defaultBranch: string;
-  sizeBytes?: number;
-  readOnly?: boolean;
-  createdAt?: string;
-}
-
-export interface ArtifactsTokenResult {
-  id: string;
-  token: string;
-  expiresAt?: string;
-  scope?: string;
-}
-
-export interface ArtifactsCommitMetadata {
-  hash: string;
-  message: string;
-  author: {
-    name: string;
-    email: string;
-    date: string;
+export interface ArtifactsPushEvent {
+  type: "cf.artifacts.repo.pushed";
+  source: { type: "artifacts.repo"; namespace: string; repoName: string };
+  payload: {
+    ref: string;
+    before: string;
+    after: string;
+    commits: Array<{ id: string; message: string; parents: string[] }>;
+    totalCommitsCount: number;
+    commitsTruncated: boolean;
   };
-  parents: string[];
-}
-
-export interface ArtifactsTreeEntry {
-  path: string;
-  type: "blob" | "tree";
-  hash: string;
-}
-
-export interface ArtifactsRepo {
-  info(): Promise<ArtifactsRepoInfo>;
-  createToken(scope?: "read" | "write" | "admin", ttl?: number): Promise<ArtifactsTokenResult>;
-  listTokens(): Promise<ArtifactsTokenResult[]>;
-  revokeToken(tokenOrId: string): Promise<boolean>;
-  fork(
-    name: string,
-    opts?: { description?: string; readOnly?: boolean; defaultBranchOnly?: boolean }
-  ): Promise<ArtifactsCreateRepoResult>;
-  log(opts?: { ref?: string; limit?: number; offset?: number }): Promise<ArtifactsCommitMetadata[]>;
-  readCommit(hash: string): Promise<ArtifactsCommitMetadata | null>;
-  readTree(hash: string): Promise<ArtifactsTreeEntry[] | null>;
-  readBlob(hash: string): Promise<Blob | null>;
-  readFile(args: { ref: string; path: string }): Promise<Blob | null>;
-}
-
-export interface ArtifactsNamespaceBinding {
-  create(
-    name: string,
-    opts?: { description?: string; readOnly?: boolean; setDefaultBranch?: string }
-  ): Promise<ArtifactsCreateRepoResult>;
-  get(name: string): Promise<ArtifactsRepo>;
-  list(opts?: { limit?: number; cursor?: string }): Promise<{
-    repos: { name: string; status: "ready" | "importing" | "forking" }[];
-    cursor?: string;
-  }>;
-  delete(name: string): Promise<void>;
-}
-
-export interface CloudflareEnv {
-  ARTIFACTS: ArtifactsNamespaceBinding;
-  DB?: D1Database;
-  ENVIRONMENT?: string;
-  PLATFORM_NAME?: string;
-  SECURITY_LEVEL?: string;
-  JURISDICTION?: string;
+  metadata?: {
+    accountId?: string;
+    eventSubscriptionId?: string;
+    eventSchemaVersion?: number;
+    eventTimestamp?: string;
+  };
 }

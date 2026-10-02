@@ -10,6 +10,7 @@
     "demo": "tsx demo/simulate-swarm.ts",
     "demo:e2e": "tsx demo/e2e-cloudflare-governance.ts",
     "verify:real": "npm run demo:e2e",
+    "prebuild": "wrangler types",
     "build": "tsc"
   },
   "keywords": [
@@ -22,11 +23,9 @@
   ],
   "author": "Rodrigo Gomes (OConnector Technology)",
   "license": "Apache-2.0",
-  "dependencies": {
-    "hono": "^4.6.0"
-  },
   "devDependencies": {
-    "tsx": "^4.19.0",
+    "@types/node": "^22.20.5",
+    "tsx": "^4.23.15",
     "typescript": "^5.6.0",
     "wrangler": "^4.147.0"
   }

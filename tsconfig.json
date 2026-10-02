@@ -4,11 +4,6 @@
     "module": "ES2022",
     "moduleResolution": "bundler",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "typeRoots": [
-      "../abs-core/node_modules/@types",
-      "../CORTEX/node_modules/@types",
-      "../CORTEX/node_modules"
-    ],
     "types": ["node"],
     "strict": true,
     "noEmit": true,

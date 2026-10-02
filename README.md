@@ -35,8 +35,9 @@ From this directory:
 ```bash
 npm run build
 npm test
-npm exec --yes --package=wrangler@4.147.0 -- wrangler types
 ```
+
+`npm run build` regenerates the Cloudflare binding types before compiling TypeScript.
 
 The real integration demo requires an authenticated Cloudflare account with Artifacts enabled, the configured D1 database/migration, the deployed Worker and event Workflow, plus the Worker secret `CORTEX_CONTROL_KEY`. Set `CORTEX_WORKER_URL` if using a different test Worker. Then run:
 

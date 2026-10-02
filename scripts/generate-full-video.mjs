@@ -12,22 +12,22 @@ const scenes = [
     id: "scene_01",
     label: "01 / 10 • THE PROBLEM",
     title: "The Agentic Software Challenge",
-    subtitle: "Why Autonomous Code Generation Breaks Traditional Git Governance",
+    subtitle: "Evaluating Agent Commits Before Promotion",
     badge: "FOUNDATIONAL PROBLEM",
     badgeColor: "#F43F5E",
-    speech: "AI coding agents can generate and push changes exponentially faster than human engineering teams can review them. As swarms of autonomous agents scale across production repositories, the core challenge is no longer merely generating a diff. The challenge is verifying exactly what was pushed, evaluating the actual repository evidence without trusting caller metadata, and deciding whether that change is authorized to move forward. Many concurrent agents. One shared codebase. At every stage, a critical question arises: who—or what—authorizes promotion? CORTEX Git connects real repository events directly to deterministic, fail-closed runtime governance, ensuring that a successful git push is never automatically treated as permission to ship.",
+    speech: "AI coding agents can produce changes quickly, which makes it useful to evaluate a commit before authorizing its promotion. CORTEX Git connects Cloudflare Artifacts push events to a governance workflow: the Worker retrieves commit content, applies configured policy checks, and records a decision and promotion state. The project demonstrates this flow on Cloudflare infrastructure, while keeping deployment to production outside its scope.",
     cardHtml: `
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 24px;">
         <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(244, 63, 94, 0.3); border-radius: 16px; padding: 32px;">
           <h3 style="color: #F43F5E; font-size: 24px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px;">
-            <span>❌</span> Traditional Git Failure
+            <span>•</span> Governance needs around agent commits
           </h3>
           <ul style="color: #94A3B8; font-size: 20px; line-height: 1.8; list-style: none;">
-            <li>• Humans drown in hundreds of LLM pull requests</li>
-            <li>• Untrusted author metadata (git config user.name)</li>
-            <li>• Branch collisions & manual merge conflict chaos</li>
-            <li>• Push-to-main directly triggers CI without runtime firewall</li>
-            <li>• Zero mathematical proof of prompt or decision provenance</li>
+            <li>• Review changes before authorizing promotion</li>
+            <li>• Treat Git author metadata as untrusted</li>
+            <li>• Surface conflicting agent edits</li>
+            <li>• Keep promotion decisions separate from Git pushes</li>
+            <li>• Record decisions and promotion state in D1</li>
           </ul>
         </div>
         <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 16px; padding: 32px;">
@@ -35,16 +35,16 @@ const scenes = [
             <span>🛡️</span> CORTEX Git Solution
           </h3>
           <ul style="color: #CBD5E1; font-size: 20px; line-height: 1.8; list-style: none;">
-            <li>• Sub-millisecond pre-dispatch triage (0.05ms P50)</li>
-            <li>• Isolated Artifacts workspaces with ephemeral tokens</li>
-            <li>• Fail-Closed 11-Gate Gatekeeper evaluating real commits</li>
-            <li>• Cryptographic Ed25519 & WORM Merkle inclusion proofs</li>
-            <li>• Distinct M-of-N human quorum only for sensitive mutations</li>
+            <li>• Task dispatch and isolated Artifacts workspaces</li>
+            <li>• Short-lived Artifacts workspace tokens</li>
+            <li>• Six deterministic policy stages evaluate retrieved commit content</li>
+            <li>• Ed25519 attestations bind an agent key to repository, ref, and commit</li>
+            <li>• Human approval for selected sensitive paths</li>
           </ul>
         </div>
       </div>
       <div style="margin-top: 32px; text-align: center; padding: 20px; background: rgba(56, 189, 248, 0.08); border-radius: 12px; border: 1px solid rgba(56, 189, 248, 0.2);">
-        <span style="font-size: 22px; color: #38BDF8; font-weight: 600;">"Agents can write the code. ABS Core decides whether the change is allowed to proceed."</span>
+        <span style="font-size: 22px; color: #38BDF8; font-weight: 600;">"Evaluate agent commits before authorizing promotion."</span>
       </div>
     `
   },
@@ -55,14 +55,14 @@ const scenes = [
     subtitle: "Cloudflare Development Platform + CORTEX Orchestration + ABS Core Gatekeeper",
     badge: "SYSTEM TOPOLOGY",
     badgeColor: "#38BDF8",
-    speech: "Rather than rebuilding Git or transforming the governance core into another Git server, CORTEX Git establishes a clean, mathematically sound separation of concerns. Cloudflare Artifacts controls the development environment, managing repositories, isolated forks, workspaces, and ephemeral write tokens over standard Git protocol. The agents produce code and push real commits. CORTEX coordinates task dispatching, sub-millisecond AST conflict triage, and multi-agent synthesis. Finally, the ABS Core Gatekeeper intercepts the push event and authoritatively evaluates the commit against an 11-gate fail-closed pipeline. Cloudflare gives agents a place to build. CORTEX coordinates the work. ABS Core governs what is allowed to ship.",
+    speech: "Cloudflare Artifacts provides the repositories, isolated workspaces, and short-lived write tokens used by the agents. CORTEX coordinates task dispatch and compares concurrent candidates for line-level conflicts. On a push event, the Worker retrieves the commit content and evaluates it through six deterministic policy stages, including configured secret patterns, dangerous-code patterns, agent signature verification, and human approval for selected sensitive paths. The resulting decision and promotion state are recorded in D1. This prototype demonstrates the governance flow; it does not deploy to production.",
     cardHtml: `
       <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 16px; padding: 32px; margin-top: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 20px;">
           <div style="flex: 1; background: rgba(30, 41, 59, 0.6); padding: 20px; border-radius: 12px; border-left: 4px solid #F59E0B; text-align: center;">
             <div style="font-size: 14px; color: #F59E0B; font-weight: 700; text-transform: uppercase;">1. Orchestration</div>
             <div style="font-size: 22px; color: #F8FAFC; font-weight: 700; margin: 8px 0;">CORTEX Engine</div>
-            <div style="font-size: 14px; color: #94A3B8;">Task Dispatch & AST Conflict Triage</div>
+            <div style="font-size: 14px; color: #94A3B8;">Task Dispatch & Line-Level Conflict Triage</div>
           </div>
           <div style="color: #64748B; font-size: 28px;">➔</div>
           <div style="flex: 1; background: rgba(30, 41, 59, 0.6); padding: 20px; border-radius: 12px; border-left: 4px solid #F38020; text-align: center;">
@@ -74,7 +74,7 @@ const scenes = [
           <div style="flex: 1; background: rgba(30, 41, 59, 0.6); padding: 20px; border-radius: 12px; border-left: 4px solid #38BDF8; text-align: center;">
             <div style="font-size: 14px; color: #38BDF8; font-weight: 700; text-transform: uppercase;">3. Actuation Authority</div>
             <div style="font-size: 22px; color: #F8FAFC; font-weight: 700; margin: 8px 0;">ABS Gatekeeper</div>
-            <div style="font-size: 14px; color: #94A3B8;">Fail-Closed 11-Gate Pipeline</div>
+            <div style="font-size: 14px; color: #94A3B8;">Six Deterministic Policy Stages</div>
           </div>
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 24px;">
@@ -84,7 +84,7 @@ const scenes = [
           </div>
           <div style="background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.3); border-radius: 10px; padding: 16px; text-align: center;">
             <div style="font-size: 20px; color: #F43F5E; font-weight: 800;">DENIED</div>
-            <div style="font-size: 14px; color: #94A3B8; margin-top: 4px;">Terminated Fail-Closed</div>
+            <div style="font-size: 14px; color: #94A3B8; margin-top: 4px;">Promotion Blocked</div>
           </div>
           <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 10px; padding: 16px; text-align: center;">
             <div style="font-size: 20px; color: #F59E0B; font-weight: 800;">ESCALATE</div>
@@ -97,11 +97,11 @@ const scenes = [
   {
     id: "scene_03",
     label: "03 / 10 • OPEN SOURCE & PREREQUISITES",
-    title: "Repository & Zero-Trust Foundation",
-    subtitle: "Apache-2.0 License • Author: Rodrigo Gomes (OConnector Technology)",
+    title: "Repository & Reproduction Steps",
+    subtitle: "Apache-2.0 License • OConnector Technology",
     badge: "SPECIFICATION",
     badgeColor: "#818CF8",
-    speech: "The platform is completely open source under the permissive Apache 2.0 license, authored by Rodrigo Gomes at OConnector Technology. The repository documents the complete reproduction lifecycle: configuring an isolated Cloudflare test namespace, applying D1 database migrations, provisioning the control key secret, deploying the edge worker and event workflow, and running the live verification suite. In this demonstration, all executions operate inside an isolated test namespace and an EU-jurisdiction D1 database, completely segregated from production infrastructure.",
+    speech: "The repository is published under the Apache 2.0 license. Its README lists the build, local checks, and requirements for the Cloudflare end-to-end demo, including an authenticated account, Artifacts, D1, a deployed Worker and Workflow, and a control key secret. The repository distinguishes its local simulation from the live E2E. The live E2E creates remote test repositories that are retained for audit and must be cleaned up separately.",
     cardHtml: `
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;">
         <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(129, 140, 248, 0.3); border-radius: 16px; padding: 24px;">
@@ -111,17 +111,17 @@ const scenes = [
             <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);"><td style="padding: 10px 0; color: #64748B;">License</td><td>Apache-2.0</td></tr>
             <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);"><td style="padding: 10px 0; color: #64748B;">Author</td><td>Rodrigo Gomes (OConnector Technology)</td></tr>
             <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);"><td style="padding: 10px 0; color: #64748B;">Platform</td><td>Cloudflare Workers & Artifacts (Open Beta)</td></tr>
-            <tr><td style="padding: 10px 0; color: #64748B;">D1 Database</td><td>cortex-git-governance (EU Jurisdiction)</td></tr>
+            <tr><td style="padding: 10px 0; color: #64748B;">Database</td><td>D1 binding configured for the Worker</td></tr>
           </table>
         </div>
         <div style="background: #0F172A; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 24px; font-family: monospace;">
           <div style="color: #64748B; font-size: 14px; margin-bottom: 12px;"># Reproduction Runbook</div>
           <div style="color: #38BDF8; font-size: 16px; line-height: 1.8;">
-            <div>$ npm run build <span style="color: #10B981;"># 0 TypeScript errors</span></div>
-            <div>$ npm test <span style="color: #10B981;"># 8/8 tests pass in 250ms</span></div>
-            <div>$ wrangler d1 migrations apply DB --remote</div>
-            <div>$ wrangler deploy <span style="color: #10B981;"># Deploys Worker + Workflow</span></div>
-            <div style="color: #F59E0B; margin-top: 8px;">$ npm run demo:e2e <span style="color: #CBD5E1;"># Real Cloudflare Live E2E</span></div>
+            <div>$ npm install</div>
+            <div>$ npm run build</div>
+            <div>$ npm test</div>
+            <div style="color: #F59E0B; margin-top: 8px;">$ npm run demo:e2e <span style="color: #CBD5E1;"># Requires deployed Cloudflare resources</span></div>
+            <div style="color: #94A3B8; margin-top: 8px;">See README for configuration and cleanup notes.</div>
           </div>
         </div>
       </div>
@@ -130,23 +130,23 @@ const scenes = [
   {
     id: "scene_04",
     label: "04 / 10 • SCENARIO A: SAFE CODE CHANGE",
-    title: "Safe Feature: Instant Evaluation & Promotion",
-    subtitle: "Real Git Push Over HTTPS ➔ ABS Gatekeeper ➔ ALLOW ➔ AUTHORIZED",
+    title: "Safe Feature: Evaluation & Promotion Eligibility",
+    subtitle: "Cloudflare Artifacts Push ➔ Policy Evaluation ➔ ALLOW ➔ AUTHORIZED",
     badge: "EVALUATION: ALLOW",
     badgeColor: "#10B981",
-    speech: "Now let us examine the first live scenario: a safe, valid feature implementation. An autonomous agent receives a task and an isolated Artifacts workspace. The agent authors the code change and performs a real git push over HTTPS using its ephemeral write token. Cloudflare Artifacts receives the commit and fires the push event to our Governance Workflow. The edge Worker retrieves the commit, tree, and file blobs directly from Cloudflare Artifacts. The ABS Gatekeeper evaluates the evidence through all 11 gates in under 11 milliseconds, issuing an ALLOW decision. The persistent promotion state transitions to AUTHORIZED, making the change eligible for downstream CI and deployment.",
+    speech: "In this live scenario, an agent receives a task and an isolated Artifacts workspace, then pushes a commit using its short-lived write token. Cloudflare Artifacts sends the push event to the Governance Workflow. The Worker retrieves the commit, tree, and file blobs, evaluates the retrieved content, and records the decision and promotion state in D1. The SAFE scenario reached ALLOW and AUTHORIZED. AUTHORIZED means eligible for downstream promotion; this integration does not perform a production deployment.",
     cardHtml: `
       <div style="background: #020617; border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 16px; padding: 28px; font-family: monospace; font-size: 16px; line-height: 1.7; box-shadow: 0 0 30px rgba(16, 185, 129, 0.1);">
         <div style="color: #10B981; font-weight: 700; margin-bottom: 8px;">[Scenario A] Safe Agent Code Mutation Execution</div>
-        <div style="color: #64748B;">• Target: src/safe.ts | Commit: 714d9f6c95f1... | Agent: agent-cortex-safe</div>
-        <div style="color: #38BDF8; margin-top: 8px;">$ git push origin HEAD  ➔  https://e7198...artifacts.cloudflare.net/git/...</div>
+        <div style="color: #64748B;">• Case: SAFE | Agent workspace: isolated Artifacts fork</div>
+        <div style="color: #38BDF8; margin-top: 8px;">$ git push origin HEAD  ➔  Cloudflare Artifacts remote</div>
         <div style="color: #E2E8F0; margin-top: 8px;">✓ Cloudflare Event: cf.artifacts.repo.pushed (Delivered to Workflow)</div>
         <div style="color: #E2E8F0;">✓ Artifacts Content Retrieval: Commit + Tree + Blobs fetched securely</div>
-        <div style="color: #E2E8F0;">✓ ABS 11-Gate Evaluation Completed in <span style="color: #10B981; font-weight: 700;">10.9ms</span></div>
+        <div style="color: #E2E8F0;">✓ Six policy stages evaluated the retrieved commit</div>
         <div style="margin-top: 16px; padding: 12px; background: rgba(16, 185, 129, 0.15); border-radius: 8px; border: 1px solid #10B981; display: flex; justify-content: space-between;">
           <span style="color: #10B981; font-weight: 800;">DECISION: ALLOW</span>
           <span style="color: #F8FAFC;">PROMOTION STATE: <b style="color: #10B981;">AUTHORIZED</b></span>
-          <span style="color: #94A3B8;">Ledger: WORM Merkle Sealed</span>
+          <span style="color: #94A3B8;">Decision & promotion state persisted in D1</span>
         </div>
       </div>
     `
@@ -154,23 +154,23 @@ const scenes = [
   {
     id: "scene_05",
     label: "05 / 10 • SCENARIO B: ROGUE INFILTRATION",
-    title: "Secret Injection Interdicted: Fail-Closed",
-    subtitle: "Synthetic Credential Detected in Diff ➔ Gate 01 Triggered ➔ DENIED ➔ BLOCKED",
+    title: "Configured Secret Pattern Detected",
+    subtitle: "Synthetic Test Credential ➔ DENY ➔ Promotion BLOCKED",
     badge: "EVALUATION: DENIED",
     badgeColor: "#EF4444",
-    speech: "In the second scenario, we demonstrate fail-closed protection against an adversarial or hallucinated agent attempting to commit an unauthorized API credential. The agent attempts to push code containing a synthetic secret. Even though the agent holds valid Git push credentials to its branch, the ABS Gatekeeper inspects the authoritative commit diff retrieved from Cloudflare Artifacts. Gate 01 immediately triggers a fail-closed interdiction in less than 1 millisecond. The decision is DENIED, and the promotion state is permanently marked as BLOCKED. The rogue commit is completely neutralized, with zero side effects permitted.",
+    speech: "In this E2E case, the agent pushes a synthetic test credential to its isolated Artifacts workspace. A configured regular expression matches the credential in the retrieved changed-file content, producing DENY and a BLOCKED promotion state. The push itself succeeds; the governance result blocks promotion. This demonstrates the configured pattern, not comprehensive secret detection.",
     cardHtml: `
       <div style="background: #020617; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 16px; padding: 28px; font-family: monospace; font-size: 16px; line-height: 1.7; box-shadow: 0 0 30px rgba(239, 68, 68, 0.1);">
         <div style="color: #EF4444; font-weight: 700; margin-bottom: 8px;">[Scenario B] Malicious / Hallucinated Credential Infiltration</div>
-        <div style="color: #64748B;">• Target: src/config.ts | Commit: fed705370c9e... | Agent: agent-cortex-secret</div>
+        <div style="color: #64748B;">• Case: SECRET | Synthetic test credential in changed file</div>
         <div style="color: #F43F5E; margin-top: 8px;">+ const api_key = "ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";</div>
         <div style="color: #E2E8F0; margin-top: 8px;">✓ Cloudflare Artifacts Remote Push Completed (Branch Isolated)</div>
-        <div style="color: #E2E8F0;">✓ Gate 01 (Secret Scanner) Intercepted in <span style="color: #EF4444; font-weight: 700;">0.74ms</span></div>
+        <div style="color: #E2E8F0;">✓ Configured secret pattern matched changed-file content</div>
         <div style="color: #F87171;">✖ Violation: CRITICAL: Potential hardcoded secret or API token detected in diff</div>
         <div style="margin-top: 16px; padding: 12px; background: rgba(239, 68, 68, 0.15); border-radius: 8px; border: 1px solid #EF4444; display: flex; justify-content: space-between;">
           <span style="color: #EF4444; font-weight: 800;">DECISION: DENY</span>
           <span style="color: #F8FAFC;">PROMOTION STATE: <b style="color: #EF4444;">BLOCKED</b></span>
-          <span style="color: #94A3B8;">Downstream CI: Terminated</span>
+          <span style="color: #94A3B8;">Promotion: Blocked</span>
         </div>
       </div>
     `
@@ -178,23 +178,23 @@ const scenes = [
   {
     id: "scene_06",
     label: "06 / 10 • SCENARIO C: SENSITIVE SCHEMA CHANGE",
-    title: "Critical Infrastructure: M-of-N Human Quorum",
-    subtitle: "SQL Migration Touched ➔ Gate 04 Escalation ➔ FROZEN ➔ Multi-Sig Quorum ➔ AUTHORIZED",
+    title: "Sensitive Path: Authenticated Human Quorum",
+    subtitle: "Selected Path Touched ➔ ESCALATE ➔ FROZEN ➔ Approval Quorum ➔ AUTHORIZED",
     badge: "EVALUATION: ESCALATE",
     badgeColor: "#F59E0B",
-    speech: "Certain changes are too sensitive for any single agent or single human to approve unilaterally. In this scenario, an agent pushes a database migration that alters relational table schemas. The ABS Gatekeeper detects the touch to critical infrastructure and triggers Gate 04, returning an ESCALATE decision. The promotion state is immediately frozen, and a persistent approval request is created with an explicit expiration window. To unfreeze the change, the platform requires an authenticated M-of-N human quorum. Two distinct human officers review the evidence and cast their cryptographic votes. Only after the second distinct approval is verified does the promotion state unlock from FROZEN to AUTHORIZED.",
+    speech: "The gatekeeper routes changes to selected sensitive paths, including migration and infrastructure configuration files, to human approval. In this E2E case, the change receives ESCALATE and the promotion becomes FROZEN while an expiring approval request is pending. Distinct authenticated approvers vote using their individual credentials. Once the configured quorum is reached, the promotion becomes AUTHORIZED. The approval uses authenticated application credentials; it is not multisignature cryptography.",
     cardHtml: `
       <div style="background: #020617; border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 16px; padding: 28px; font-family: monospace; font-size: 16px; line-height: 1.7; box-shadow: 0 0 30px rgba(245, 158, 11, 0.1);">
         <div style="color: #F59E0B; font-weight: 700; margin-bottom: 8px;">[Scenario C] Sensitive DDL Schema Migration Evaluation</div>
-        <div style="color: #64748B;">• Target: migrations/001_sensitive.sql | Commit: 933942bec745...</div>
-        <div style="color: #E2E8F0; margin-top: 8px;">✓ Gate 04 (Infrastructure Sentinel) Triggered: <span style="color: #F59E0B;">QUORUM_REQUIRED</span></div>
-        <div style="color: #FBBF24;">➔ Approval Request ID: approval-d7f617ee... (Required Approvals: 2 Distinct Humans)</div>
-        <div style="color: #94A3B8; margin-top: 4px;">• Approver 1 (Reviewer A) casts cryptographic vote ➔ [ APPROVED ] (Count: 1/2)</div>
-        <div style="color: #94A3B8;">• Approver 2 (Reviewer B) casts cryptographic vote ➔ [ APPROVED ] (Count: 2/2)</div>
+        <div style="color: #64748B;">• Case: SENSITIVE_CHANGE | Selected migration path</div>
+        <div style="color: #E2E8F0; margin-top: 8px;">✓ Selected sensitive-path policy triggered: <span style="color: #F59E0B;">QUORUM_REQUIRED</span></div>
+        <div style="color: #FBBF24;">➔ Expiring approval request (required approvals: 2 distinct approvers)</div>
+        <div style="color: #94A3B8; margin-top: 4px;">• Authenticated approver A votes ➔ [ APPROVED ] (Count: 1/2)</div>
+        <div style="color: #94A3B8;">• Authenticated approver B votes ➔ [ APPROVED ] (Count: 2/2)</div>
         <div style="margin-top: 16px; padding: 12px; background: rgba(245, 158, 11, 0.15); border-radius: 8px; border: 1px solid #F59E0B; display: flex; justify-content: space-between;">
           <span style="color: #F59E0B; font-weight: 800;">DECISION: ESCALATE</span>
           <span style="color: #F8FAFC;">STATE: <b style="color: #F59E0B;">FROZEN</b> ➔ <b style="color: #10B981;">AUTHORIZED</b></span>
-          <span style="color: #94A3B8;">Quorum: 2/2 Authenticated</span>
+          <span style="color: #94A3B8;">Authenticated quorum: 2/2</span>
         </div>
       </div>
     `
@@ -209,13 +209,13 @@ const scenes = [
     speech: "What happens when two autonomous agents work on the same codebase simultaneously? Here, Agent A and Agent B begin from the exact same base commit in isolated workspaces. Both modify the same shared file with conflicting logic and push their respective commits. Rather than failing silently, CORTEX analyzes the actual Git trees and line-level diffs from Artifacts, detecting the divergence. The task status transitions to RESOLUTION_PENDING. Resolving a conflict cannot simply be an unchecked merge: the resolution must be committed as a brand-new commit. That resolution commit is pushed, passes through the full ABS governance pipeline again, and only then achieves the AUTHORIZED promotion state.",
     cardHtml: `
       <div style="background: #020617; border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 16px; padding: 28px; font-family: monospace; font-size: 16px; line-height: 1.7; box-shadow: 0 0 30px rgba(168, 85, 247, 0.1);">
-        <div style="color: #A855F7; font-weight: 700; margin-bottom: 8px;">[Scenario D] Concurrent Multi-Agent AST Collision</div>
+        <div style="color: #A855F7; font-weight: 700; margin-bottom: 8px;">[Scenario D] Concurrent Multi-Agent Line Conflict</div>
         <div style="color: #64748B;">• Shared File: src/shared.txt | Common Base: 6e0cdd45...</div>
-        <div style="color: #E2E8F0; margin-top: 8px;">➔ Agent A pushes Commit 8accd4a7... (mode=agent-a)</div>
-        <div style="color: #E2E8F0;">➔ Agent B pushes Commit a22b4378... (mode=agent-b)</div>
-        <div style="color: #C084FC;">⚠ AST Conflict Detected: Conflicting candidates on same line offset</div>
+        <div style="color: #E2E8F0; margin-top: 8px;">➔ Agent A pushes a candidate from the common base</div>
+        <div style="color: #E2E8F0;">➔ Agent B pushes a candidate from the same base</div>
+        <div style="color: #C084FC;">⚠ Line Conflict Detected: Candidates changed overlapping lines</div>
         <div style="color: #E2E8F0;">➔ Task State: <b style="color: #F59E0B;">RESOLUTION_PENDING</b> (Resolution commit mandatory)</div>
-        <div style="color: #38BDF8; margin-top: 4px;">➔ Agent synthesizes Resolution Commit 6127e606... (mode=resolved)</div>
+        <div style="color: #38BDF8; margin-top: 4px;">➔ Resolution is committed and evaluated again</div>
         <div style="margin-top: 16px; padding: 12px; background: rgba(168, 85, 247, 0.15); border-radius: 8px; border: 1px solid #A855F7; display: flex; justify-content: space-between;">
           <span style="color: #A855F7; font-weight: 800;">RESOLUTION GOVERNED</span>
           <span style="color: #F8FAFC;">DECISION: <b style="color: #10B981;">ALLOW</b></span>
@@ -227,23 +227,23 @@ const scenes = [
   {
     id: "scene_08",
     label: "08 / 10 • SCENARIO E: IDEMPOTENT EVENT REPLAY",
-    title: "Idempotent Replay & Audit Proof",
-    subtitle: "Captured Cloudflare Event Replayed ➔ 1 Decision Row ➔ Zero Duplicate Transitions",
-    badge: "IDEMPOTENCY GUARANTEE",
+    title: "Duplicate Event Replay",
+    subtitle: "Identical Captured Event Replayed ➔ Existing Decision Reused",
+    badge: "DUPLICATE HANDLING",
     badgeColor: "#06B6D4",
-    speech: "Distributed cloud systems must be resilient to network retries, webhook re-deliveries, and replay attacks. In this test, the exact same Cloudflare push event is replayed against the governance endpoint. The system derives a deterministic idempotency key from the account ID, namespace, repository, ref, and commit SHA. The replay recognizes the captured event, returning the existing decision without duplicating transitions or creating redundant ledger entries. The summary confirms exactly one decision row with idempotent true, ensuring total consistency in persistent storage.",
+    speech: "This E2E case replays the same captured Cloudflare push payload. The event identity uses the account, namespace, repository, ref, and commit SHA. Processing recognizes the already-decided event and returns its existing state rather than creating a second decision. The README describes the exact verification scope and the current source should be redeployed and rerun after changes.",
     cardHtml: `
       <div style="background: #020617; border: 1px solid rgba(6, 182, 212, 0.4); border-radius: 16px; padding: 28px; font-family: monospace; font-size: 16px; line-height: 1.7; box-shadow: 0 0 30px rgba(6, 182, 212, 0.1);">
         <div style="color: #06B6D4; font-weight: 700; margin-bottom: 8px;">[Scenario E] Webhook Event Re-delivery & Idempotency Audit</div>
-        <div style="color: #64748B;">• Target Event: Commit 714d9f6c95f1... | Event Key: e7198485...:cortex-git:...</div>
-        <div style="color: #E2E8F0; margin-top: 8px;">$ curl -X POST /api/governance/714d9f6c.../replay</div>
-        <div style="color: #22D3EE;">✓ Derived Event Key: SHA-256(accountId:namespace:repo:ref:commitSha)</div>
-        <div style="color: #E2E8F0;">✓ Match Found: Captured event previously processed and sealed</div>
-        <div style="color: #10B981;">✓ Replay Verification: Zero duplicate state mutations, zero duplicate rows</div>
+        <div style="color: #64748B;">• Target: previously captured Artifacts push event</div>
+        <div style="color: #E2E8F0; margin-top: 8px;">$ replay captured event payload</div>
+        <div style="color: #22D3EE;">✓ Event identity: account, namespace, repository, ref, and commit SHA</div>
+        <div style="color: #E2E8F0;">✓ Match Found: Captured event already has a terminal decision</div>
+        <div style="color: #10B981;">✓ Existing decision and promotion state returned</div>
         <div style="margin-top: 16px; padding: 12px; background: rgba(6, 182, 212, 0.15); border-radius: 8px; border: 1px solid #06B6D4; display: flex; justify-content: space-between;">
-          <span style="color: #06B6D4; font-weight: 800;">IDEMPOTENT: TRUE</span>
-          <span style="color: #F8FAFC;">DECISION ROWS: <b style="color: #38BDF8;">1</b></span>
-          <span style="color: #10B981; font-weight: 700;">AUDIT INTEGRITY: VERIFIED</span>
+          <span style="color: #06B6D4; font-weight: 800;">DUPLICATE: RECOGNIZED</span>
+          <span style="color: #F8FAFC;">DECISION: <b style="color: #38BDF8;">REUSED</b></span>
+          <span style="color: #10B981; font-weight: 700;">STATE: PERSISTED IN D1</span>
         </div>
       </div>
     `
@@ -251,37 +251,33 @@ const scenes = [
   {
     id: "scene_09",
     label: "09 / 10 • CLOUDFLARE PRODUCTION PROOF",
-    title: "Live Cloudflare Telemetry: Workflow & D1",
-    subtitle: "Real Push Events to Workflow Instances ➔ Authoritative D1 Database Records",
+    title: "Live Cloudflare E2E Evidence",
+    subtitle: "Artifacts Push Events ➔ Workflow Processing ➔ Decisions & Promotion State in D1",
     badge: "PERSISTENT EVIDENCE",
     badgeColor: "#10B981",
-    speech: "Here we examine the live telemetry directly on the Cloudflare infrastructure. On the left, we observe the active Cloudflare Workflow instances, triggered natively by the repository push event. On the right, we execute an authoritative SQL query against the remote Cloudflare D1 database. All six governance decisions are durably persisted with their corresponding commit SHAs, evaluation outcomes, promotion states, and RFC timestamps. This durable audit trail connects every autonomous code change to an immutable, cryptographically verifiable record.",
+    speech: "The README records the scope of the previously demonstrated live E2E: real Artifacts pushes triggered Workflow processing, and event payloads, decisions, and promotion states were stored in D1. The repository includes screenshots of the live demo and D1 evidence. The current source has since changed its signed attestation payload to include the ref, so redeploy and rerun the E2E before presenting those earlier results as verification of this revision. D1 stores the governance state; it is not an immutable cryptographic audit ledger.",
     cardHtml: `
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 20px;">
         <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(243, 128, 32, 0.3); border-radius: 14px; padding: 20px; font-family: monospace; font-size: 14px;">
-          <div style="color: #F38020; font-weight: 700; margin-bottom: 12px;">Cloudflare Workflow Instances (Real Triggers)</div>
+          <div style="color: #F38020; font-weight: 700; margin-bottom: 12px;">Live integration path</div>
           <div style="color: #94A3B8; line-height: 1.8;">
-            <div>• Instance: <span style="color: #38BDF8;">inst-6127e6</span> ➔ <span style="color: #10B981;">Complete (ALLOW)</span></div>
-            <div>• Instance: <span style="color: #38BDF8;">inst-a22b43</span> ➔ <span style="color: #10B981;">Complete (RESOLVED)</span></div>
-            <div>• Instance: <span style="color: #38BDF8;">inst-8accd4</span> ➔ <span style="color: #10B981;">Complete (RESOLVED)</span></div>
-            <div>• Instance: <span style="color: #38BDF8;">inst-933942</span> ➔ <span style="color: #F59E0B;">Complete (ESCALATED)</span></div>
-            <div>• Instance: <span style="color: #38BDF8;">inst-fed705</span> ➔ <span style="color: #EF4444;">Complete (DENIED)</span></div>
-            <div>• Instance: <span style="color: #38BDF8;">inst-714d9f</span> ➔ <span style="color: #10B981;">Complete (ALLOW)</span></div>
+            <div>• Cloudflare Artifacts receives a Git push</div>
+            <div>• The native push event starts the Governance Workflow</div>
+            <div>• The Worker retrieves commit, tree, and changed-file content</div>
+            <div>• The gatekeeper returns a policy decision</div>
+            <div>• Event, decision, and promotion state are persisted in D1</div>
+            <div>• The README links screenshots from the recorded live run</div>
           </div>
         </div>
         <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 14px; padding: 20px; font-family: monospace; font-size: 13px;">
-          <div style="color: #10B981; font-weight: 700; margin-bottom: 12px;">Cloudflare D1 Query (Database ID: 21131839...)</div>
-          <table style="width: 100%; border-collapse: collapse; text-align: left;">
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); color: #64748B;">
-              <th>Commit</th><th>Decision</th><th>Promotion</th>
-            </tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);"><td style="color:#38BDF8;">6127e606</td><td style="color:#10B981;">ALLOW</td><td style="color:#10B981;">AUTHORIZED</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);"><td style="color:#38BDF8;">a22b4378</td><td style="color:#10B981;">ALLOW</td><td style="color:#94A3B8;">RESOLVED</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);"><td style="color:#38BDF8;">8accd4a7</td><td style="color:#10B981;">ALLOW</td><td style="color:#94A3B8;">RESOLVED</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);"><td style="color:#38BDF8;">933942be</td><td style="color:#F59E0B;">ESCALATE</td><td style="color:#10B981;">AUTHORIZED</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);"><td style="color:#38BDF8;">fed70537</td><td style="color:#EF4444;">DENY</td><td style="color:#EF4444;">BLOCKED</td></tr>
-            <tr><td style="color:#38BDF8;">714d9f6c</td><td style="color:#10B981;">ALLOW</td><td style="color:#10B981;">AUTHORIZED</td></tr>
-          </table>
+          <div style="color: #10B981; font-weight: 700; margin-bottom: 12px;">What the persisted records show</div>
+          <div style="color: #CBD5E1; font-size: 16px; line-height: 2;">
+            <div>Governance event identity</div>
+            <div>Policy decision and outcome</div>
+            <div>Promotion state and update time</div>
+            <div>Approval and conflict state when applicable</div>
+            <div style="margin-top: 12px; color: #F59E0B;">The per-evaluation Merkle data is not a durable aggregate ledger.</div>
+          </div>
         </div>
       </div>
     `
@@ -289,31 +285,31 @@ const scenes = [
   {
     id: "scene_10",
     label: "10 / 10 • CONCLUSION & SCOPE",
-    title: "The Future of Autonomous Software",
-    subtitle: "A Complete Governance Loop: Proven, Empirical, and Open Source",
+    title: "Prototype Scope & Next Verification Step",
+    subtitle: "Open Source Governance Integration for Cloudflare Artifacts",
     badge: "EXECUTIVE SUMMARY",
     badgeColor: "#38BDF8",
-    speech: "In conclusion, CORTEX Git delivers what the agentic software era urgently demands: rigorous, deterministic governance between autonomous code generation and production shipping. Remember: AUTHORIZED signifies eligibility for promotion; this integration maintains clear separation from production deployment. Agent attribution is bound through task contracts and isolated workspaces. Cloudflare gives agents a place to build. CORTEX coordinates the work. ABS Core governs what is allowed to ship. Visit our open-source repository at github.com slash eusheriff slash cortex-git to reproduce the full pipeline.",
+    speech: "CORTEX Git is an open-source prototype connecting Cloudflare Artifacts push events to commit evaluation, human approval, conflict handling, and D1 promotion state. Its six policy stages use configured patterns and signature checks; they are not a complete security scanner. The agent key is bound to a task workspace, repository, ref, and commit, while the Artifacts event does not independently identify the Git token that pushed. AUTHORIZED means eligible for promotion; no production deploy is performed. See the README for limitations and the steps to reproduce the E2E.",
     cardHtml: `
       <div style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 16px; padding: 32px; margin-top: 20px;">
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
           <div>
-            <h4 style="color: #38BDF8; font-size: 20px; margin-bottom: 12px;">Core Guarantees Proven</h4>
+            <h4 style="color: #38BDF8; font-size: 20px; margin-bottom: 12px;">Demonstrated in the recorded E2E</h4>
             <ul style="color: #CBD5E1; font-size: 17px; line-height: 1.8; list-style: none;">
               <li>✔ Real Cloudflare Artifacts Git pushes over HTTPS</li>
-              <li>✔ Sub-millisecond fail-closed gate enforcement</li>
-              <li>✔ M-of-N human quorum for critical schema changes</li>
+              <li>✔ Configured secret-pattern case returned DENY</li>
+              <li>✔ Authenticated human quorum for selected sensitive paths</li>
               <li>✔ Multi-agent conflict detection & re-governed resolution</li>
-              <li>✔ Durable decision & promotion tracking in D1 database</li>
+              <li>✔ Decision & promotion state stored in D1</li>
             </ul>
           </div>
           <div>
             <h4 style="color: #94A3B8; font-size: 20px; margin-bottom: 12px;">Scope & Boundaries</h4>
             <ul style="color: #94A3B8; font-size: 17px; line-height: 1.8; list-style: none;">
               <li>• AUTHORIZED = Eligible for promotion (not deployed to prod)</li>
-              <li>• Agent attribution bound via task & isolated workspace</li>
-              <li>• D1 database configured with EU jurisdiction</li>
-              <li>• Zero alteration to ABS Core engine architecture</li>
+              <li>• Agent key bound to task workspace; push token attribution is not proven</li>
+              <li>• Pattern checks are heuristic, not complete static analysis</li>
+              <li>• Merkle record is local to an evaluation, not an aggregate ledger</li>
             </ul>
           </div>
         </div>

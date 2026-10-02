@@ -105,7 +105,7 @@ scenes = [
         "title": "05 / 10 • Scenario B: Secret Detection (DENY)",
         "source_mov": PURE_TERMINAL_VIDEO,
         "seek": "00:00:20",
-        "badge": "REAL EXECUTION • SCENARIO B: SECRET DETECTION (DENY) • GATE 04 FIREWALL",
+        "badge": "REAL EXECUTION • SCENARIO B: CONFIGURED SECRET PATTERN (DENY)",
         "audio_aac": f"{WORK_DIR}/scene_05.aac"
     },
     {
@@ -123,7 +123,7 @@ scenes = [
         "title": "07 / 10 • Scenario D: Two-Agent Conflict Triage",
         "source_mov": PURE_TERMINAL_VIDEO,
         "seek": "00:01:02",
-        "badge": "REAL EXECUTION • SCENARIO D: TWO-AGENT CONFLICT TRIAGE • 0.05ms P50",
+        "badge": "REAL EXECUTION • SCENARIO D: TWO-AGENT LINE-CONFLICT RESOLUTION",
         "audio_aac": f"{WORK_DIR}/scene_07.aac"
     },
     {
@@ -132,16 +132,16 @@ scenes = [
         "title": "08 / 10 • Scenario E: Idempotent Replay",
         "source_mov": PURE_TERMINAL_VIDEO,
         "seek": "00:01:20",
-        "badge": "REAL EXECUTION • SCENARIO E: IDEMPOTENT REPLAY • CACHE HIT VERIFIED",
+        "badge": "REAL EXECUTION • SCENARIO E: DUPLICATE EVENT RECOGNIZED",
         "audio_aac": f"{WORK_DIR}/scene_08.aac"
     },
     {
         "id": "scene_09a",
         "type": "video",
-        "title": "09A / 10 • Cloudflare D1 Console Proof",
+        "title": "09A / 10 • Cloudflare D1 Governance State",
         "source_mov": PURE_CLOUDFLARE_D1_VIDEO,
         "seek": "00:00:00",
-        "badge": "CLOUDFLARE DASHBOARD • REAL D1 SQLITE AUDIT TRAIL • EU JURISDICTION",
+        "badge": "CLOUDFLARE DASHBOARD • LIVE D1 GOVERNANCE STATE",
         "audio_aac": f"{WORK_DIR}/scene_09a.aac"
     },
     {
@@ -156,7 +156,7 @@ scenes = [
     {
         "id": "scene_10",
         "type": "slide",
-        "title": "10 / 10 • Scope, Guarantees & Summary",
+        "title": "10 / 10 • Scope, Capabilities & Summary",
         "slide_png": f"{WORK_DIR}/scene_10.png",
         "audio_aac": f"{WORK_DIR}/scene_10.aac"
     }

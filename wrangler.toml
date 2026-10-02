@@ -36,7 +36,7 @@ targets = [{ type = "workflow", workflow_name = "cortex-git-governance" }]
 [triggers.events.filter]
 namespace = "cortex-git"
 
-# Fast global revocation and emergency kill-switch (<2ms read, 250ms replication)
+# KV-backed revocation and emergency kill-switch checks
 [[kv_namespaces]]
 binding = "CORTEX_KV"
 id = "08d005fcfbdf41d383c96d0545364330"
@@ -56,4 +56,3 @@ head_sampling_rate = 1
   [observability.traces]
   enabled = true
   head_sampling_rate = 1
-

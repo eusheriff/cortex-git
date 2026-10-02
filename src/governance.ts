@@ -363,7 +363,7 @@ export async function processPushEvent(env: Env, event: ArtifactsPushEvent): Pro
       parentCommitHash: evidence.commit.parents[0] ?? "0000000000000000000000000000000000000000",
       authorAgent: agentIdentity,
       promptText: task.description,
-      diff: evidence.diff,
+      changedFileContent: evidence.changedFileContent,
       modifiedFiles: evidence.changedPaths,
       signatureHex: attestation?.signature_hex ?? "",
       revocationRegistry,

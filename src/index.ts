@@ -107,7 +107,7 @@ async function captureAttestation(request: Request, env: Env): Promise<Response>
   if (!workspace || workspace.agent_id !== agentId) return json({ error: "Agent is not bound to this workspace" }, 403);
   const agent = await env.DB.prepare("SELECT public_key FROM agents WHERE account_id = ? AND agent_id = ?")
     .bind(env.CLOUDFLARE_ACCOUNT_ID, agentId).first<{ public_key: string }>();
-  const signedPayload = `${repository}:${commitSha}:${agentId}`;
+  const signedPayload = CortexCrypto.agentAttestationPayload(repository, ref, commitSha, agentId);
   if (!agent || !await CortexCrypto.verifySignature(signedPayload, signatureHex, agent.public_key)) return json({ error: "Invalid agent attestation" }, 403);
   await env.DB.prepare(`INSERT OR IGNORE INTO attestations (account_id, namespace, repository, ref, commit_sha, agent_id, signature_hex, created_at)
     VALUES (?, 'cortex-git', ?, ?, ?, ?, ?, ?)`)

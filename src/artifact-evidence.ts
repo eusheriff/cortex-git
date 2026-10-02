@@ -7,7 +7,7 @@ export interface CommitEvidence {
   commit: ArtifactsCommitMetadata;
   parent: ArtifactsCommitMetadata | null;
   changedPaths: string[];
-  diff: string;
+  changedFileContent: string;
   contentSha256: string;
   baseFiles: Map<string, string>;
   changedFiles: Map<string, string>;
@@ -54,29 +54,29 @@ export async function readCommitEvidence(repo: ArtifactsRepo, commitSha: string)
     .filter((path) => currentFiles.get(path) !== baseFiles.get(path))
     .sort();
 
-  const diffParts: string[] = [];
+  const changedFileContentParts: string[] = [];
   let contentBytes = 0;
   const changedFiles = new Map<string, string>();
   for (const path of changedPaths) {
     const objectId = currentFiles.get(path);
     if (!objectId) {
-      diffParts.push(`--- ${path} (deleted)`);
+      changedFileContentParts.push(`--- ${path} (deleted)`);
       continue;
     }
     const content = await readTextBlob(repo, objectId);
     contentBytes += content.bytes;
     if (contentBytes > MAX_CHANGED_CONTENT_BYTES) throw new Error("Changed content exceeds governance scan limit");
     changedFiles.set(path, content.text);
-    diffParts.push(`+++ ${path}\n${content.text}`);
+    changedFileContentParts.push(`+++ ${path}\n${content.text}`);
   }
 
-  const diff = diffParts.join("\n");
+  const changedFileContent = changedFileContentParts.join("\n");
   return {
     commit,
     parent,
     changedPaths,
-    diff,
-    contentSha256: await CortexCrypto.sha256(diff),
+    changedFileContent,
+    contentSha256: await CortexCrypto.sha256(changedFileContent),
     baseFiles,
     changedFiles,
   };

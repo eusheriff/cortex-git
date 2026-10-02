@@ -1,7 +1,7 @@
 /**
- * CORTEX Git: Live Multi-Agent Swarm Simulation
- * Demonstrates 5 concurrent agents collaborating on Cloudflare Artifacts
- * with Pre-dispatch Arbitration, Fail-Closed 11-Gate Pipeline, and Merkle Proofs.
+ * CORTEX Git: local mock swarm simulation
+ * Demonstrates four simulated agents with pre-dispatch arbitration,
+ * six deterministic policy stages, and local Merkle examples.
  */
 
 import { CortexCrypto } from "../src/crypto.js";
@@ -42,10 +42,10 @@ class MockArtifactsBinding implements ArtifactsNamespaceBinding {
   async delete() {}
 }
 
-async function runLiveSwarmSimulation() {
+async function runLocalMockSwarmSimulation() {
   console.log("================================================================================");
-  console.log("  🚀 CORTEX Git — Autonomous Sovereign Git Platform on Cloudflare Artifacts");
-  console.log("  Multi-Agent Concurrent Swarm & Runtime Governance Demonstration");
+  console.log("  CORTEX Git — Local Mock Governance Simulation");
+  console.log("  Simulated Multi-Agent Workflow; No Cloudflare Requests");
   console.log("================================================================================\n");
 
   const artifacts = new MockArtifactsBinding();
@@ -94,7 +94,7 @@ async function runLiveSwarmSimulation() {
     createdTimestamp: Date.now(),
   };
 
-  console.log(` ✓ Registered 4 Agents with cryptographic keypairs on Cloudflare Workers edge.\n`);
+  console.log(` ✓ Created 4 simulated agent identities with local Ed25519 keypairs.\n`);
 
   // 2. Pre-Dispatch Arbiter Concurrency Triage
   console.log("[Phase 2/5] Pre-dispatch Arbiter Concurrency Triage (JEV System 1)...");
@@ -116,7 +116,7 @@ async function runLiveSwarmSimulation() {
       description: "Optimize query parser throughput",
       targetFiles: ["src/engine/parser.ts"],
       expectedModifications: ["src/engine/parser.ts"],
-      safetyConstraints: ["Maintain AST invariants"],
+      safetyConstraints: ["Preserve parser safety constraints"],
       timestamp: Date.now(),
     },
     {
@@ -145,16 +145,18 @@ async function runLiveSwarmSimulation() {
     const triage = await arbiter.triageIntent(t);
     console.log(` • [Triage ${t.taskId}] Agent: ${t.agentId} | Files: [${t.targetFiles.join(", ")}]`);
     console.log(`   ➔ Decision: ${triage.allowedConcurrently ? "ALLOWED" : "SERIALIZED"} | Collision Risk: ${triage.conflictRisk} | Quorum Needed: ${triage.requiresQuorum} | Latency: ${triage.arbiterLatencyMs}ms`);
-    console.log(`   ➔ Forked Artifacts Workspace: env.ARTIFACTS.fork("${triage.assignedWorkspace}")`);
+    console.log(`   ➔ Mock workspace assigned: ${triage.assignedWorkspace}`);
   }
-  console.log(`\n ✓ Concurrent multi-agent forks created in Cloudflare Artifacts without collisions.\n`);
+  console.log(`\n ✓ Mock workspaces assigned for the local simulation.\n`);
 
-  // 3. Evaluate Pushed Commits with 11-Gate Pipeline
-  console.log("[Phase 3/5] Evaluating Commits via Deterministic 11-Gate Pipeline...");
+  // 3. Evaluate Pushed Commits with six policy stages
+  console.log("[Phase 3/5] Evaluating Commits via six deterministic policy stages...");
 
   // Commit 1: Clean code from Agent 1
   const commit1Hash = await CortexCrypto.sha256("commit-1-data");
-  const sig1 = await CortexCrypto.signPayload(`core-enterprise-app:${commit1Hash}:${agent1.agentId}`, agent1Key.privateKey);
+  const sig1 = await CortexCrypto.signPayload(
+    CortexCrypto.agentAttestationPayload("core-enterprise-app", "agent-sec-linter-01/headers", commit1Hash, agent1.agentId), agent1Key.privateKey
+  );
   const outcome1 = await gatekeeper.evaluateCommit({
     repo: "core-enterprise-app",
     branch: "agent-sec-linter-01/headers",
@@ -162,15 +164,17 @@ async function runLiveSwarmSimulation() {
     parentCommitHash: "000000000000",
     authorAgent: agent1,
     promptText: "Add strict CSP headers",
-    diff: "+ export const CSP_HEADER = 'default-src self';",
+    changedFileContent: "+ export const CSP_HEADER = 'default-src self';",
     modifiedFiles: ["src/security/headers.ts"],
     signatureHex: sig1,
   });
-  console.log(` [Agent 1 Outcome] Decision: ${outcome1.decision} (Evaluated 5 Gates in ${outcome1.totalLatencyMs}ms)`);
+  console.log(` [Agent 1 Outcome] Decision: ${outcome1.decision} (Evaluated ${outcome1.gates.length} policy stages in ${outcome1.totalLatencyMs}ms)`);
 
   // Commit 2: Adversarial code from Agent 3 (Hardcoded secret + eval)
   const commit3Hash = await CortexCrypto.sha256("commit-3-adversarial");
-  const sig3 = await CortexCrypto.signPayload(`core-enterprise-app:${commit3Hash}:${agent3.agentId}`, agent3Key.privateKey);
+  const sig3 = await CortexCrypto.signPayload(
+    CortexCrypto.agentAttestationPayload("core-enterprise-app", "agent-rogue-03/logger", commit3Hash, agent3.agentId), agent3Key.privateKey
+  );
   const outcome3 = await gatekeeper.evaluateCommit({
     repo: "core-enterprise-app",
     branch: "agent-rogue-03/logger",
@@ -178,7 +182,7 @@ async function runLiveSwarmSimulation() {
     parentCommitHash: "000000000000",
     authorAgent: agent3,
     promptText: "Add debugging logger",
-    diff: "+ const apiKey = 'AKIA' + 'IOSFODNN7EXAMPLE';\n+ eval(untrustedInput);",
+    changedFileContent: "+ const apiKey = 'AKIA' + 'IOSFODNN7EXAMPLE';\n+ eval(untrustedInput);",
     modifiedFiles: ["src/utils/logger.ts"],
     signatureHex: sig3,
   });
@@ -187,7 +191,9 @@ async function runLiveSwarmSimulation() {
 
   // Commit 3: Critical infrastructure from Agent 4
   const commit4Hash = await CortexCrypto.sha256("commit-4-migration");
-  const sig4 = await CortexCrypto.signPayload(`core-enterprise-app:${commit4Hash}:${agent4.agentId}`, agent4Key.privateKey);
+  const sig4 = await CortexCrypto.signPayload(
+    CortexCrypto.agentAttestationPayload("core-enterprise-app", "agent-infra-04/migration", commit4Hash, agent4.agentId), agent4Key.privateKey
+  );
   const outcome4 = await gatekeeper.evaluateCommit({
     repo: "core-enterprise-app",
     branch: "agent-infra-04/migration",
@@ -195,7 +201,7 @@ async function runLiveSwarmSimulation() {
     parentCommitHash: "000000000000",
     authorAgent: agent4,
     promptText: "Run schema migration",
-    diff: "+ CREATE TABLE accounts (id TEXT PRIMARY KEY, balance REAL);",
+    changedFileContent: "+ CREATE TABLE accounts (id TEXT PRIMARY KEY, balance REAL);",
     modifiedFiles: ["migrations/2026_001_accounts.sql"],
     signatureHex: sig4,
   });
@@ -230,8 +236,8 @@ async function runLiveSwarmSimulation() {
   console.log(`   ➔ ${consensus.rankingExplanation}`);
   console.log(`   ➔ Synthesized Consensus Report:\n${consensus.synthesisMarkdown}`);
 
-  // 5. Cryptographic Merkle Root & SPV Proof
-  console.log("[Phase 5/5] Local Merkle audit proof (simulation)...");
+  // 5. Local simulation Merkle root & SPV example
+  console.log("[Phase 5/5] Local Merkle example (simulation only)...");
   const leaves = [outcome1.signedRecord!.merkleLeaf, outcome4.signedRecord!.merkleLeaf];
   const merkleTree = await CortexCrypto.buildMerkleTree(leaves);
   const spvProof = await CortexCrypto.generateSPVProof(leaves, 0);
@@ -243,8 +249,8 @@ async function runLiveSwarmSimulation() {
 
   console.log("\n================================================================================");
   console.log("  Local simulation complete — no Cloudflare event or Git conflict was verified.");
-  console.log("  Ready for Cloudflare Workers & Cloudflare Artifacts Competition!");
+  console.log("  This simulation is not evidence of a live Cloudflare E2E run.");
   console.log("================================================================================");
 }
 
-runLiveSwarmSimulation().catch(console.error);
+runLocalMockSwarmSimulation().catch(console.error);

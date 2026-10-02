@@ -8,6 +8,8 @@
     "deploy": "wrangler deploy",
     "test": "tsx --test tests/*.test.ts",
     "demo": "tsx demo/simulate-swarm.ts",
+    "demo:e2e": "tsx demo/e2e-cloudflare-governance.ts",
+    "verify:real": "tsx demo/verify-real-artifacts.ts",
     "build": "tsc"
   },
   "keywords": [

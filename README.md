@@ -24,9 +24,9 @@ The gatekeeper instance keeps Merkle leaves and records only in memory. A live e
 
 ## Current verification status
 
-The Worker, Workflow, D1 binding, schedule, and `cf.artifacts.repo.pushed` trigger have been deployed and exercised with real push events. The previously recorded live run completed SAFE (`ALLOW → AUTHORIZED`), SECRET (`DENY → BLOCKED`), SENSITIVE_CHANGE (`ESCALATE → FROZEN → APPROVED → AUTHORIZED`), duplicate replay (one decision), and two-agent conflict detection/resolution. Workflow event payloads, decisions, and promotion states were persisted in D1. The current source now signs the ref as part of agent attestations; deploy this revision and rerun the canonical E2E before treating that prior run as verification of the current source.
+The Worker, Workflow, D1 binding, schedule, and `cf.artifacts.repo.pushed` trigger are deployed. On 2026-10-02, the canonical E2E passed against real Cloudflare infrastructure using source repository `cortex-e2e-526c1181`. It verified SAFE (`ALLOW → AUTHORIZED`), SECRET (`DENY → BLOCKED`), SENSITIVE_CHANGE (`ESCALATE → APPROVED → AUTHORIZED`), duplicate replay (one decision row), and two-agent conflict detection followed by resolution commit and authorized promotion. The script confirmed the resulting decisions and promotion states. This verifies the demonstrated workflow; it is not a claim that Cortex Git deploys or promotes application code by itself. `AUTHORIZED` means promotion authorization only.
 
-Automated local checks cover the existing crypto, gatekeeper, arbiter, and consensus regression cases. The local swarm demo remains a simulation; the canonical live E2E above is the evidence for real Artifacts Git pushes and conflict handling. No production deployment was performed: `AUTHORIZED` means promotion authorization only.
+Automated local checks cover the existing crypto, gatekeeper, arbiter, and consensus regression cases. The local swarm demo remains a simulation; the canonical live E2E above is the evidence for real Artifacts Git pushes and conflict handling. No application code deployment was performed: `AUTHORIZED` means promotion authorization only.
 
 ## Run checks
 
@@ -35,16 +35,17 @@ From this directory:
 ```bash
 npm run build
 npm test
-npm exec --yes --package=wrangler@4.147.0 -- wrangler types
 ```
 
-The real integration demo requires an authenticated Cloudflare account with Artifacts enabled, the configured D1 database/migration, the deployed Worker and event Workflow, plus the Worker secret `CORTEX_CONTROL_KEY`. Set `CORTEX_WORKER_URL` if using a different test Worker. Then run:
+`npm run build` regenerates the Cloudflare binding types before compiling TypeScript.
+
+The real integration demo requires an authenticated Cloudflare account with Artifacts enabled, the configured D1 database/migration, the deployed Worker and event Workflow, plus the Worker secret `CORTEX_CONTROL_KEY`. Set `CORTEX_WORKER_URL` if using a different test Worker. The control key is a persistent Worker secret and should be rotated or removed when no longer needed. Then run:
 
 ```bash
 npm run demo:e2e
 ```
 
-The script creates a uniquely named Artifacts source repository, seeds it with a real Git push, requests isolated forks and ephemeral agent tokens, then runs SAFE, SECRET, SENSITIVE_CHANGE, duplicate-event, and two-agent conflict/resolution cases. It waits for terminal event processing and persistent promotion state; it does not synthesize Cloudflare push events. It prints commit identities and outcomes only after checks pass. The script removes only its own generated local temporary directory. Remote test repositories and their history are intentionally retained for audit and must be removed separately when no longer needed. The demonstrated run used a temporary `CORTEX_CONTROL_KEY`, which was removed after verification.
+The script creates a uniquely named Artifacts source repository, seeds it with a real Git push, requests isolated forks and ephemeral agent tokens, then runs SAFE, SECRET, SENSITIVE_CHANGE, duplicate-event, and two-agent conflict/resolution cases. It waits for terminal event processing and persistent promotion state; it does not synthesize Cloudflare push events. It prints commit identities and outcomes only after checks pass. The script removes only its own generated local temporary directory. Remote test repositories and their history are intentionally retained for audit and must be removed separately when no longer needed.
 
 `npm run demo` is the explicitly local swarm simulation; it is not the canonical E2E.
 

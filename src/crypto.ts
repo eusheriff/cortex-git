@@ -8,6 +8,13 @@ import { MerkleNode, SPVInclusionProof } from "./types.js";
 
 export class CortexCrypto {
   /**
+   * Encodes the fields covered by an agent's commit attestation without delimiter ambiguity.
+   */
+  static agentAttestationPayload(repo: string, ref: string, commitSha: string, agentId: string): string {
+    return JSON.stringify([repo, ref, commitSha, agentId]);
+  }
+
+  /**
    * Computes SHA-256 hex digest
    */
   static async sha256(data: string | Uint8Array): Promise<string> {

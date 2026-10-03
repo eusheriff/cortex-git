@@ -56,7 +56,9 @@ async function commitAndPush(workspace: any, agent: Agent, file: string, content
   git(directory, ["commit", "-m", message]);
   const commitSha = git(directory, ["rev-parse", "HEAD"]);
   const ref = git(directory, ["symbolic-ref", "HEAD"]);
-  const signatureHex = await CortexCrypto.signPayload(workspace.repository + ":" + commitSha + ":" + agent.id, agent.keys.privateKey);
+  const signatureHex = await CortexCrypto.signPayload(
+    CortexCrypto.agentAttestationPayload(workspace.repository, ref, commitSha, agent.id), agent.keys.privateKey
+  );
   await api("/api/attestations", { method: "POST", token: controlKey, body: {
     repository: workspace.repository, ref, commitSha, agentId: agent.id, signatureHex,
   } });

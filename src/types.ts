@@ -33,7 +33,7 @@ export interface SignedCommitRecord {
   observedAt: string;
   localTimestampProof: string;
   monotonicClockMs: number;
-  signature: string; // Ed25519 signature
+  signature: string; // Agent signature over repository, ref, commit SHA, and agent ID
   sarId: string; // Signed Action Record ID
   merkleLeaf: string;
 }

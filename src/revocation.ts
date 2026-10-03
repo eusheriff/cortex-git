@@ -1,6 +1,5 @@
 /**
- * CORTEX Git: Instant Revocation & Kill-Switch Engine (Workers KV Instant)
- * Sub-2ms p99 read latency with 250ms global edge propagation.
+ * CORTEX Git: revocation and kill-switch checks backed by Workers KV.
  */
 
 export interface RevocationRecord {

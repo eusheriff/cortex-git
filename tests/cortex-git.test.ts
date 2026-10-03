@@ -124,7 +124,7 @@ test("CortexArbiter: triages non-overlapping tasks concurrently and isolates wor
   assert.notEqual(resA.assignedWorkspace, resB.assignedWorkspace);
 });
 
-test("CortexGatekeeper: blocks commits containing hardcoded secrets (Gate 01)", async () => {
+test("CortexGatekeeper: denies promotion when configured secret patterns match (Gate 01)", async () => {
   const gatekeeper = new CortexGatekeeper();
   const { publicKeyHex, privateKey } = await CortexCrypto.generateAgentKeypair();
 
@@ -138,7 +138,9 @@ test("CortexGatekeeper: blocks commits containing hardcoded secrets (Gate 01)", 
   };
 
   const commitHash = await CortexCrypto.sha256("leak-secret");
-  const signatureHex = await CortexCrypto.signPayload(`my-app:${commitHash}:${author.agentId}`, privateKey);
+  const signatureHex = await CortexCrypto.signPayload(
+    CortexCrypto.agentAttestationPayload("my-app", "bad-branch", commitHash, author.agentId), privateKey
+  );
 
   const outcome = await gatekeeper.evaluateCommit({
     repo: "my-app",
@@ -147,7 +149,7 @@ test("CortexGatekeeper: blocks commits containing hardcoded secrets (Gate 01)", 
     parentCommitHash: "000",
     authorAgent: author,
     promptText: "Fix bug",
-    diff: "+ const token = 'ghp_123456789012345678901234567890123456';",
+    changedFileContent: "+ const token = 'ghp_123456789012345678901234567890123456';",
     modifiedFiles: ["src/config.ts"],
     signatureHex,
   });
@@ -173,7 +175,9 @@ test("CortexGatekeeper: enforces Human Quorum on critical infrastructure files (
   };
 
   const commitHash = await CortexCrypto.sha256("clean-migration");
-  const signatureHex = await CortexCrypto.signPayload(`my-app:${commitHash}:${author.agentId}`, privateKey);
+  const signatureHex = await CortexCrypto.signPayload(
+    CortexCrypto.agentAttestationPayload("my-app", "mig-branch", commitHash, author.agentId), privateKey
+  );
 
   const outcome = await gatekeeper.evaluateCommit({
     repo: "my-app",
@@ -182,7 +186,7 @@ test("CortexGatekeeper: enforces Human Quorum on critical infrastructure files (
     parentCommitHash: "000",
     authorAgent: author,
     promptText: "Add table",
-    diff: "+ CREATE TABLE users (id INT PRIMARY KEY);",
+    changedFileContent: "+ CREATE TABLE users (id INT PRIMARY KEY);",
     modifiedFiles: ["migrations/001_init.sql"],
     signatureHex,
   });
@@ -345,7 +349,9 @@ test("CortexGatekeeper: Gate 00 instantly fails-closed on revoked agent key", as
   };
 
   const commitHash = await CortexCrypto.sha256("benign-commit");
-  const signatureHex = await CortexCrypto.signPayload(`secure-repo:${commitHash}:${author.agentId}`, privateKey);
+  const signatureHex = await CortexCrypto.signPayload(
+    CortexCrypto.agentAttestationPayload("secure-repo", "main", commitHash, author.agentId), privateKey
+  );
 
   const outcome = await gatekeeper.evaluateCommit({
     repo: "secure-repo",
@@ -354,7 +360,7 @@ test("CortexGatekeeper: Gate 00 instantly fails-closed on revoked agent key", as
     parentCommitHash: "000",
     authorAgent: author,
     promptText: "Add innocuous helper",
-    diff: "+ export function help() { return true; }",
+    changedFileContent: "+ export function help() { return true; }",
     modifiedFiles: ["src/helper.ts"],
     signatureHex,
     revocationRegistry: registry,
@@ -367,4 +373,3 @@ test("CortexGatekeeper: Gate 00 instantly fails-closed on revoked agent key", as
   assert.ok(outcome.gates[0].reason.includes("FAIL-CLOSED"));
   assert.equal(outcome.gates.length, 1, "Must short-circuit immediately without evaluating other gates");
 });
-

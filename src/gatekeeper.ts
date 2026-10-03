@@ -1,6 +1,5 @@
 /**
- * CORTEX Git: Deterministic 11-Gate Enforcement Engine
- * Fail-closed gatekeeper for every autonomous agent commit in Cloudflare Artifacts.
+ * CORTEX Git: deterministic, pattern-based commit policy checks.
  */
 
 import {
@@ -20,7 +19,7 @@ export interface CommitPayload {
   parentCommitHash: string;
   authorAgent: AgentIdentity;
   promptText: string;
-  diff: string;
+  changedFileContent: string;
   modifiedFiles: string[];
   signatureHex: string;
   revocationRegistry?: RevocationRegistry;
@@ -30,7 +29,7 @@ export class CortexGatekeeper {
   private ledgerLeaves: string[] = [];
   private signedRecords: SignedCommitRecord[] = [];
 
-  // Patterns for hardcoded secret detection
+  // Heuristic patterns for selected hardcoded-secret formats; this is not a complete secret scanner.
   private secretPatterns: RegExp[] = [
     /(?:api[_-]?key|secret|token|password|bearer|auth)["']?\s*[:=]\s*["']([A-Za-z0-9_\-]{16,})["']/i,
     /ghp_[0-9a-zA-Z]{36}/, // GitHub Personal Access Token
@@ -39,7 +38,7 @@ export class CortexGatekeeper {
     /-----BEGIN (?:RSA |EC )?PRIVATE KEY-----/, // PEM private keys
   ];
 
-  // Dangerous AST patterns
+  // Heuristic text patterns; these checks do not parse or analyze an AST.
   private dangerousPatterns: RegExp[] = [
     /\beval\s*\(/,
     /\bexec\s*\(/,
@@ -98,11 +97,11 @@ export class CortexGatekeeper {
     // --- GATE 01: Secret Scanner (Leak Prevention) ---
     const g1Start = performance.now();
     let g1Passed = true;
-    let g1Reason = "No hardcoded secrets detected in commit diff.";
+    let g1Reason = "No configured hardcoded-secret patterns matched changed-file content.";
     for (const pattern of this.secretPatterns) {
-      if (pattern.test(payload.diff)) {
+      if (pattern.test(payload.changedFileContent)) {
         g1Passed = false;
-        g1Reason = "CRITICAL: Potential hardcoded secret or API credential detected in diff.";
+        g1Reason = "Potential hardcoded secret or API credential pattern detected in changed-file content.";
         decision = "DENIED";
         break;
       }
@@ -113,16 +112,16 @@ export class CortexGatekeeper {
       passed: g1Passed,
       latencyMs: parseFloat((performance.now() - g1Start).toFixed(3)),
       reason: g1Reason,
-      evidenceHash: await CortexCrypto.sha256(payload.diff.slice(0, 100)),
+      evidenceHash: await CortexCrypto.sha256(payload.changedFileContent.slice(0, 100)),
     });
 
-    // --- GATE 02: AST Invariant & Dangerous Execution Check ---
+    // --- GATE 02: Pattern-based dangerous-code check ---
     const g2Start = performance.now();
     let g2Passed = true;
-    let g2Reason = "All code modifications satisfy safe runtime invariants.";
+    let g2Reason = "No configured dangerous-code text patterns matched changed-file content.";
     if (g1Passed) {
       for (const pattern of this.dangerousPatterns) {
-        if (pattern.test(payload.diff)) {
+        if (pattern.test(payload.changedFileContent)) {
           g2Passed = false;
           g2Reason = "FAIL-CLOSED: Dangerous execution pattern (eval/exec/rm/drop) identified.";
           decision = "DENIED";
@@ -135,18 +134,20 @@ export class CortexGatekeeper {
     }
     gates.push({
       gateNumber: 2,
-      gateName: "AST_INVARIANT_CHECK",
+      gateName: "DANGEROUS_CODE_PATTERN_CHECK",
       passed: g2Passed,
       latencyMs: parseFloat((performance.now() - g2Start).toFixed(3)),
       reason: g2Reason,
       evidenceHash: await CortexCrypto.sha256(g2Reason),
     });
 
-    // --- GATE 03: Cryptographic Non-Repudiation (Ed25519) ---
+    // --- GATE 03: Ed25519 agent-attestation verification ---
     const g3Start = performance.now();
     let g3Passed = false;
     let g3Reason = "Invalid or unverified agent signature.";
-    const signedData = `${payload.repo}:${payload.commitHash}:${payload.authorAgent.agentId}`;
+    const signedData = CortexCrypto.agentAttestationPayload(
+      payload.repo, payload.branch, payload.commitHash, payload.authorAgent.agentId
+    );
     if (payload.signatureHex) {
       g3Passed = await CortexCrypto.verifySignature(
         signedData,
@@ -157,7 +158,7 @@ export class CortexGatekeeper {
         g3Reason = "Ed25519 signature cryptographically verified against agent public key.";
       } else {
         decision = "DENIED";
-        g3Reason = "FAIL-CLOSED: Signature verification failed. Agent repudiation detected.";
+        g3Reason = "FAIL-CLOSED: Agent attestation signature verification failed.";
       }
     } else {
       decision = "DENIED";
@@ -200,7 +201,7 @@ export class CortexGatekeeper {
       evidenceHash: await CortexCrypto.sha256(g4Reason),
     });
 
-    // --- GATE 05: Local Merkle Audit Record and hash-based timestamp proof ---
+    // --- GATE 05: Per-evaluation Merkle record and local hash-based timestamp ---
     const g5Start = performance.now();
     let signedRecord: SignedCommitRecord | undefined;
     let merkleRoot: string | undefined;
@@ -241,7 +242,7 @@ export class CortexGatekeeper {
       gateName: "MERKLE_AUDIT_RECORD",
       passed: decision !== "DENIED",
       latencyMs: parseFloat((performance.now() - g5Start).toFixed(3)),
-      reason: decision !== "DENIED" ? "Local timestamp proof and Merkle audit record created." : "Skipped due to denial.",
+      reason: decision !== "DENIED" ? "Local timestamp hash and per-evaluation Merkle record created; neither is an external timestamp or durable aggregate ledger." : "Skipped due to denial.",
       evidenceHash: merkleRoot || "DENIED",
     });
 

@@ -86,7 +86,7 @@ export type CloudflareEnv = Env;
 
 export interface ArtifactsPushEvent {
   type: "cf.artifacts.repo.pushed";
-  source: { type: "artifacts.repo"; namespace: string; repoName: string };
+  source: { type?: "artifacts.repo"; namespace: string; repoName: string };
   payload: {
     ref: string;
     before: string;

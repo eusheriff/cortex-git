@@ -1,7 +1,10 @@
 import { WorkflowEntrypoint, type WorkflowStep } from "cloudflare:workers";
 import { CortexArbiter } from "./arbiter.js";
+import { controlAuthorized } from "./auth.js";
 import { readCommitEvidence } from "./artifact-evidence.js";
 import { CortexCrypto } from "./crypto.js";
+import { validateArtifactsPushEvent } from "./event-validation.js";
+import { ApiError } from "./http-error.js";
 import { expireApprovals, processPushEvent, recordApprovalVote } from "./governance.js";
 import { RevocationRegistry } from "./revocation.js";
 import { parseOrCreateTraceContext, attachTraceHeaders, type W3CTraceContext } from "./telemetry.js";
@@ -13,55 +16,47 @@ const json = (body: unknown, status = 200, trace?: W3CTraceContext) => {
   return new Response(JSON.stringify(body), { status, headers });
 };
 
-function equalSecret(a: string, b: string): boolean {
-  const left = new TextEncoder().encode(a);
-  const right = new TextEncoder().encode(b);
-  let mismatch = left.length ^ right.length;
-  for (let i = 0; i < Math.max(left.length, right.length); i++) mismatch |= (left[i] ?? 0) ^ (right[i] ?? 0);
-  return mismatch === 0;
-}
-
-function controlAuthorized(request: Request, env: Env): boolean {
-  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
-  return Boolean(env.CORTEX_CONTROL_KEY && equalSecret(token, env.CORTEX_CONTROL_KEY));
-}
-
 async function bodyJson(request: Request): Promise<Record<string, unknown>> {
-  const body: unknown = await request.json();
-  if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Expected a JSON object");
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    throw new ApiError(400, "Request body must be valid JSON");
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new ApiError(400, "Expected a JSON object");
   return body as Record<string, unknown>;
 }
 
 function taskString(body: Record<string, unknown>, field: string): string {
   const value = body[field];
-  if (typeof value !== "string" || !value.trim()) throw new Error(`Missing ${field}`);
+  if (typeof value !== "string" || !value.trim()) throw new ApiError(400, `Missing ${field}`);
   return value.trim();
 }
 
 async function createTask(request: Request, env: Env): Promise<Response> {
-  if (!controlAuthorized(request, env)) return json({ error: "Unauthorized" }, 401);
+  if (!await controlAuthorized(request, env)) return json({ error: "Unauthorized" }, 401);
   const body = await bodyJson(request);
   const taskId = taskString(body, "taskId");
   const sourceRepo = taskString(body, "sourceRepo");
   const baseCommitSha = taskString(body, "baseCommitSha");
   const description = taskString(body, "description");
   const rawAgents = body.agents;
-  if (!Array.isArray(rawAgents) || rawAgents.length < 1 || rawAgents.length > 8) throw new Error("agents must contain 1..8 agent definitions");
+  if (!Array.isArray(rawAgents) || rawAgents.length < 1 || rawAgents.length > 8) throw new ApiError(400, "agents must contain 1..8 agent definitions");
   const agents = rawAgents.map((item) => {
-    if (!item || typeof item !== "object") throw new Error("Invalid agent definition");
+    if (!item || typeof item !== "object") throw new ApiError(400, "Invalid agent definition");
     const agent = item as Record<string, unknown>;
     for (const field of ["agentId", "name", "model", "publicKey"] as const) {
-      if (typeof agent[field] !== "string" || !agent[field]) throw new Error(`Agent ${field} is required`);
+      if (typeof agent[field] !== "string" || !agent[field]) throw new ApiError(400, `Agent ${field} is required`);
     }
-    if (!/^[0-9a-f]{64}$/i.test(agent.publicKey as string)) throw new Error("Agent publicKey must be an Ed25519 public key hex string");
+    if (!/^[0-9a-f]{64}$/i.test(agent.publicKey as string)) throw new ApiError(400, "Agent publicKey must be an Ed25519 public key hex string");
     return { agentId: agent.agentId as string, name: agent.name as string, model: agent.model as string,
       publicKey: (agent.publicKey as string).toLowerCase(), targetFiles: Array.isArray(agent.targetFiles) ? agent.targetFiles.filter((v): v is string => typeof v === "string") : [] };
   });
-  if (new Set(agents.map((agent) => agent.agentId)).size !== agents.length) throw new Error("Agent identities must be unique");
+  if (new Set(agents.map((agent) => agent.agentId)).size !== agents.length) throw new ApiError(400, "Agent identities must be unique");
 
   const source = await env.ARTIFACTS.get(sourceRepo);
   const baseEvidence = await readCommitEvidence(source, baseCommitSha);
-  if (!baseEvidence.commit.hash || baseEvidence.commit.hash !== baseCommitSha) throw new Error("Base commit SHA did not match Artifacts metadata");
+  if (!baseEvidence.commit.hash || baseEvidence.commit.hash !== baseCommitSha) throw new ApiError(400, "Base commit SHA did not match Artifacts metadata");
   const createdAt = new Date().toISOString();
   await env.DB.prepare(`INSERT INTO tasks (account_id, namespace, task_id, source_repo, base_commit_sha, description, expected_agents, status, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, 'OPEN', ?)`)
@@ -95,7 +90,7 @@ async function createTask(request: Request, env: Env): Promise<Response> {
 }
 
 async function captureAttestation(request: Request, env: Env): Promise<Response> {
-  if (!controlAuthorized(request, env)) return json({ error: "Unauthorized" }, 401);
+  if (!await controlAuthorized(request, env)) return json({ error: "Unauthorized" }, 401);
   const body = await bodyJson(request);
   const repository = taskString(body, "repository");
   const ref = taskString(body, "ref");
@@ -116,7 +111,7 @@ async function captureAttestation(request: Request, env: Env): Promise<Response>
 }
 
 async function createApprover(request: Request, env: Env): Promise<Response> {
-  if (!controlAuthorized(request, env)) return json({ error: "Unauthorized" }, 401);
+  if (!await controlAuthorized(request, env)) return json({ error: "Unauthorized" }, 401);
   const body = await bodyJson(request);
   const approverId = taskString(body, "approverId");
   const token = Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -131,7 +126,7 @@ async function handleRequest(request: Request, env: Env, trace: W3CTraceContext)
     return json({ service: "cortex-git-governance", eventType: "cf.artifacts.repo.pushed", traceId: trace.traceId }, 200, trace);
   }
   if (request.method === "POST" && url.pathname === "/api/governance/killswitch") {
-    if (!controlAuthorized(request, env)) return json({ error: "Unauthorized" }, 401, trace);
+    if (!await controlAuthorized(request, env)) return json({ error: "Unauthorized" }, 401, trace);
     if (!env.CORTEX_KV) return json({ error: "KV binding not configured" }, 503, trace);
     const body = await bodyJson(request);
     const active = Boolean(body.active);
@@ -144,7 +139,7 @@ async function handleRequest(request: Request, env: Env, trace: W3CTraceContext)
     return json({ success: true, target: "global", active }, 200, trace);
   }
   if (request.method === "POST" && url.pathname === "/api/governance/revoke-agent") {
-    if (!controlAuthorized(request, env)) return json({ error: "Unauthorized" }, 401, trace);
+    if (!await controlAuthorized(request, env)) return json({ error: "Unauthorized" }, 401, trace);
     if (!env.CORTEX_KV) return json({ error: "KV binding not configured" }, 503, trace);
     const body = await bodyJson(request);
     const publicKey = taskString(body, "publicKey");
@@ -154,6 +149,7 @@ async function handleRequest(request: Request, env: Env, trace: W3CTraceContext)
     return json({ success: true, revokedPublicKey: publicKey.toLowerCase() }, 200, trace);
   }
   if (request.method === "GET" && url.pathname === "/api/governance/revocation-status") {
+    if (!await controlAuthorized(request, env)) return json({ error: "Unauthorized" }, 401, trace);
     if (!env.CORTEX_KV) return json({ error: "KV binding not configured" }, 503, trace);
     const registry = new RevocationRegistry(env.CORTEX_KV);
     const key = url.searchParams.get("key") ?? undefined;
@@ -162,7 +158,7 @@ async function handleRequest(request: Request, env: Env, trace: W3CTraceContext)
     return json({ revoked: Boolean(status?.revoked), details: status }, 200, trace);
   }
   if (request.method === "POST" && url.pathname === "/api/repos") {
-    if (!controlAuthorized(request, env)) return json({ error: "Unauthorized" }, 401);
+    if (!await controlAuthorized(request, env)) return json({ error: "Unauthorized" }, 401);
     const body = await bodyJson(request);
     const name = taskString(body, "name");
     const created = await env.ARTIFACTS.create(name, { setDefaultBranch: "main", description: "CORTEX governance E2E source" });
@@ -175,12 +171,12 @@ async function handleRequest(request: Request, env: Env, trace: W3CTraceContext)
   if (request.method === "POST" && vote) {
     const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
     const body = await bodyJson(request);
-    if (body.decision !== "APPROVED" && body.decision !== "REJECTED") throw new Error("decision must be APPROVED or REJECTED");
+    if (body.decision !== "APPROVED" && body.decision !== "REJECTED") throw new ApiError(400, "decision must be APPROVED or REJECTED");
     return json(await recordApprovalVote(env, decodeURIComponent(vote[1]), token, body.decision));
   }
   const replay = url.pathname.match(/^\/api\/governance\/([^/]+)\/replay$/);
   if (request.method === "POST" && replay) {
-    if (!controlAuthorized(request, env)) return json({ error: "Unauthorized" }, 401);
+    if (!await controlAuthorized(request, env)) return json({ error: "Unauthorized" }, 401);
     const commitSha = decodeURIComponent(replay[1]);
     const event = await env.DB.prepare(`SELECT payload_json FROM governance_events WHERE account_id = ? AND commit_sha = ? ORDER BY received_at LIMIT 1`)
       .bind(env.CLOUDFLARE_ACCOUNT_ID, commitSha).first<{ payload_json: string }>();
@@ -189,7 +185,7 @@ async function handleRequest(request: Request, env: Env, trace: W3CTraceContext)
   }
   const governance = url.pathname.match(/^\/api\/governance\/([^/]+)$/);
   if (request.method === "GET" && governance) {
-    if (!controlAuthorized(request, env)) return json({ error: "Unauthorized" }, 401);
+    if (!await controlAuthorized(request, env)) return json({ error: "Unauthorized" }, 401);
     const sha = decodeURIComponent(governance[1]);
     const rows = await env.DB.prepare(`SELECT e.account_id, e.namespace, e.repository, e.ref, e.commit_sha, e.status AS event_status,
       d.decision, d.outcome_json, p.state AS promotion_state, p.updated_at AS promotion_updated_at,
@@ -202,7 +198,7 @@ async function handleRequest(request: Request, env: Env, trace: W3CTraceContext)
   }
   const task = url.pathname.match(/^\/api\/tasks\/([^/]+)$/);
   if (request.method === "GET" && task) {
-    if (!controlAuthorized(request, env)) return json({ error: "Unauthorized" }, 401);
+    if (!await controlAuthorized(request, env)) return json({ error: "Unauthorized" }, 401);
     const taskId = decodeURIComponent(task[1]);
     const taskRow = await env.DB.prepare("SELECT * FROM tasks WHERE account_id = ? AND namespace = ? AND task_id = ?")
       .bind(env.CLOUDFLARE_ACCOUNT_ID, "cortex-git", taskId).first();
@@ -212,7 +208,7 @@ async function handleRequest(request: Request, env: Env, trace: W3CTraceContext)
   }
   const approval = url.pathname.match(/^\/api\/approvals\/([^/]+)$/);
   if (request.method === "GET" && approval) {
-    if (!controlAuthorized(request, env)) return json({ error: "Unauthorized" }, 401);
+    if (!await controlAuthorized(request, env)) return json({ error: "Unauthorized" }, 401);
     const row = await env.DB.prepare(`SELECT a.*, e.account_id, e.namespace, e.repository, e.ref, e.commit_sha FROM approvals a
       JOIN governance_events e ON e.event_key = a.event_key WHERE a.approval_id = ?`)
       .bind(decodeURIComponent(approval[1])).first();
@@ -223,17 +219,33 @@ async function handleRequest(request: Request, env: Env, trace: W3CTraceContext)
 
 export class GovernanceWorkflow extends WorkflowEntrypoint<Env, ArtifactsPushEvent> {
   override async run(event: Readonly<{ payload: ArtifactsPushEvent }>, step: WorkflowStep): Promise<unknown> {
+    const validation = validateArtifactsPushEvent(event.payload, this.env.CLOUDFLARE_ACCOUNT_ID);
+    if (!validation.valid) {
+      const received = event.payload as unknown;
+      const record = received && typeof received === "object" ? received as Record<string, unknown> : undefined;
+      const source = record?.source && typeof record.source === "object" ? record.source as Record<string, unknown> : undefined;
+      const payload = record?.payload && typeof record.payload === "object" ? record.payload as Record<string, unknown> : undefined;
+      console.error(JSON.stringify({ event: "artifacts_push_rejected", code: validation.code,
+        keys: record ? Object.keys(record).sort() : [], type: record?.type,
+        sourceType: source?.type, payloadKeys: payload ? Object.keys(payload).sort() : [],
+        refType: typeof payload?.ref, afterType: typeof payload?.after,
+        afterLength: typeof payload?.after === "string" ? payload.after.length : undefined }));
+      return { status: "REJECTED", reason: validation.code };
+    }
     return step.do("capture-and-govern-authoritative-artifacts-commit", async () =>
-      JSON.stringify(await processPushEvent(this.env, event.payload)));
+      JSON.stringify(await processPushEvent(this.env, validation.event)));
   }
 }
 
 export default {
   fetch(request: Request, env: Env): Promise<Response> {
     const trace = parseOrCreateTraceContext(request);
-    return handleRequest(request, env, trace).catch((error: unknown) =>
-      json({ error: error instanceof Error ? error.message : "Internal error" }, 400, trace)
-    );
+    return handleRequest(request, env, trace).catch((error: unknown) => {
+      if (error instanceof ApiError) return json({ error: error.message }, error.status, trace);
+      console.error(JSON.stringify({ event: "request_failed", path: new URL(request.url).pathname,
+        traceId: trace.traceId, errorName: error instanceof Error ? error.name : "UnknownError" }));
+      return json({ error: "Internal server error" }, 500, trace);
+    });
   },
   scheduled(_controller: ScheduledController, env: Env): Promise<void> {
     return expireApprovals(env).then(() => undefined);

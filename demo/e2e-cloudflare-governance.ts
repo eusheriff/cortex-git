@@ -5,7 +5,7 @@ import path from "node:path";
 import assert from "node:assert/strict";
 import { CortexCrypto } from "../src/crypto.js";
 
-const baseUrl = process.env.CORTEX_WORKER_URL ?? "https://cortex-git.xerifegomes-e71.workers.dev";
+const baseUrl = process.env.CORTEX_WORKER_URL ?? "https://cortex-git.xerifegomes.workers.dev";
 const controlKey = process.env.CORTEX_CONTROL_KEY;
 if (!controlKey) throw new Error("Set CORTEX_CONTROL_KEY to a Worker secret before running the real E2E");
 const root = mkdtempSync(path.join(tmpdir(), "cortex-git-live-"));

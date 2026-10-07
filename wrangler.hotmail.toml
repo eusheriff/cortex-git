@@ -1,12 +1,12 @@
+# Staging/migration target for Xerifegomes@hotmail.com's Cloudflare account.
+# The Artifact baseline and D1 snapshot were copied from Gmail; this config
+# deploys the isolated Hotmail Worker without attaching any custom domains.
 name = "cortex-git"
-account_id = "e71984852bedaf5f21cef5d949948498"
+account_id = "6938b9775448fabcdd8f0c07283f87c1"
 main = "src/index.ts"
 compatibility_date = "2026-10-02"
 compatibility_flags = ["nodejs_compat"]
 
-# Cloudflare Artifacts Git binding (Open Beta)
-# Connects the Worker directly to programmable Git repositories
-# In Workers code: env.ARTIFACTS
 [[artifacts]]
 binding = "ARTIFACTS"
 namespace = "cortex-git"
@@ -16,13 +16,12 @@ ENVIRONMENT = "production"
 PLATFORM_NAME = "CORTEX Git"
 SECURITY_LEVEL = "FAIL_CLOSED"
 JURISDICTION = "eu"
-CLOUDFLARE_ACCOUNT_ID = "e71984852bedaf5f21cef5d949948498"
+CLOUDFLARE_ACCOUNT_ID = "6938b9775448fabcdd8f0c07283f87c1"
 
-# Persistent governance, approval, conflict, and promotion state.
 [[d1_databases]]
 binding = "DB"
 database_name = "cortex-git-governance"
-database_id = "21131839-1aa4-4a70-98ad-ccc32115a2e9"
+database_id = "abc2ff6c-59c7-49ca-804f-df12ba3b1438"
 migrations_dir = "migrations"
 
 [[workflows]]
@@ -37,15 +36,13 @@ targets = [{ type = "workflow", workflow_name = "cortex-git-governance" }]
 [triggers.events.filter]
 namespace = "cortex-git"
 
-# KV-backed revocation and emergency kill-switch checks
 [[kv_namespaces]]
 binding = "CORTEX_KV"
-id = "08d005fcfbdf41d383c96d0545364330"
+id = "b4eb7e7ce3744ef485b83dd615c7b9c5"
 
 [triggers]
 crons = ["*/5 * * * *"]
 
-# Native Cloudflare Observability & Cloudflare Traces (W3C OpenTelemetry)
 [observability]
 enabled = true
 head_sampling_rate = 1

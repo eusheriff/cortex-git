@@ -4,6 +4,8 @@ import { CortexGatekeeper } from "./gatekeeper.js";
 import { RevocationRegistry } from "./revocation.js";
 import { ArtifactsPushEvent, AgentIdentity, TaskIntent } from "./types.js";
 import { canonicalJson, eventIdentity, readCommitEvidence } from "./artifact-evidence.js";
+import { validateArtifactsPushEvent } from "./event-validation.js";
+import { ApiError } from "./http-error.js";
 
 const APPROVAL_TTL_MS = 24 * 60 * 60 * 1_000;
 const PROCESSING_LEASE_MS = 2 * 60 * 1_000;
@@ -301,13 +303,10 @@ async function finalizeCandidatePromotions(env: Env, task: TaskRow): Promise<voi
 }
 
 export async function processPushEvent(env: Env, event: ArtifactsPushEvent): Promise<Record<string, unknown>> {
+  const validation = validateArtifactsPushEvent(event, env.CLOUDFLARE_ACCOUNT_ID);
+  if (!validation.valid) throw new Error(validation.code);
+  event = validation.event;
   const accountId = event.metadata?.accountId ?? env.CLOUDFLARE_ACCOUNT_ID;
-  if (event.type !== "cf.artifacts.repo.pushed" || !accountId ||
-      !event.source?.namespace || !event.source.repoName || !event.payload?.ref ||
-      !/^[0-9a-f]{40}$/.test(event.payload.after)) throw new Error("Invalid Artifacts push event");
-  if (event.metadata?.accountId && event.metadata.accountId !== env.CLOUDFLARE_ACCOUNT_ID) {
-    throw new Error("Push event account does not match the configured account");
-  }
 
   const captured = await persistEvent(env.DB, event, accountId);
   if (!captured.process) {
@@ -453,14 +452,14 @@ export async function recordApprovalVote(
   const approver = await env.DB.prepare(`SELECT approver_id FROM approvers
     WHERE account_id = ? AND token_hash = ? AND revoked_at IS NULL`)
     .bind(env.CLOUDFLARE_ACCOUNT_ID, tokenHash).first<{ approver_id: string }>();
-  if (!approver) throw new Error("Approver authentication failed");
+  if (!approver) throw new ApiError(401, "Approver authentication failed");
 
   const approval = await env.DB.prepare("SELECT * FROM approvals WHERE approval_id = ?")
     .bind(approvalId).first<{
       approval_id: string; event_key: string; status: string; expires_at: string;
       required_approvals: number; received_approvals: number;
     }>();
-  if (!approval) throw new Error("Approval not found");
+  if (!approval) throw new ApiError(404, "Approval not found");
   if (approval.status !== "PENDING_HUMAN_APPROVAL") return { approvalId, status: approval.status, duplicate: true };
   if (Date.parse(approval.expires_at) <= Date.now()) {
     await env.DB.prepare("UPDATE approvals SET status = 'EXPIRED' WHERE approval_id = ? AND status = 'PENDING_HUMAN_APPROVAL'")
